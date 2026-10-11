@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111111">
+  <title>Administration | AMSRON HOUSE</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <a href="index.html" class="admin-logo">
+      AMSRON <span>HOUSE</span>
+    </a>
+    <div class="admin-header-right">
+      <span>Espace administration</span>
+      <a href="index.html" class="site-link">Voir le site</a>
+    </div>
+  </header>
+
+  <main class="admin-container">
+    <section class="welcome">
+      <p class="eyebrow">GESTION DE LA BOUTIQUE</p>
+      <h1>Tableau de bord</h1>
+      <p>Gérez vos produits, vos prix, votre restaurant et vos commandes.</p>
+    </section>
+
+    <section class="stats">
+      <article class="stat-card">
+        <span>Produits</span>
+        <strong id="productCount">—</strong>
+      </article>
+      <article class="stat-card">
+        <span>Commandes</span>
+        <strong id="orderCount">—</strong>
+      </article>
+      <article class="stat-card">
+        <span>Plats du restaurant</span>
+        <strong id="menuCount">—</strong>
+      </article>
+    </section>
+
+    <section class="admin-section">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">AMSRON STYLE</p>
+          <h2>Gestion des produits</h2>
+        </div>
+        <button class="gold-button" id="showProductForm">
+          + Ajouter un produit
+        </button>
+      </div>
+
+      <form id="productForm" class="admin-form" hidden>
+        <h3 id="productFormTitle">Nouveau produit</h3>
+        <input type="hidden" id="productId">
+
+        <label for="productName">Nom du produit</label>
+        <input id="productName" type="text" required maxlength="150"
+               placeholder="Ex. : Chemise homme">
+
+        <label for="productDescription">Description</label>
+        <textarea id="productDescription" rows="3"
+                  placeholder="Décrivez le produit"></textarea>
+
+        <div class="form-grid">
+          <div>
+            <label for="productPrice">Prix (FCFA)</label>
+            <input id="productPrice" type="number" min="0" step="1"
+                   required placeholder="Ex. : 10000">
+          </div>
+          <div>
+            <label for="productStock">Stock disponible</label>
+            <input id="productStock" type="number" min="0" step="1"
+                   required value="0">
+          </div>
+        </div>
+
+        <label for="productCategory">Catégorie</label>
+        <input id="productCategory" type="text" required
+               placeholder="Homme, femme, enfant, accessoires…">
+
+        <label for="productImage">Photo du produit</label>
+<input id="productImage" type="file" accept="image/*">
+<img id="productImagePreview" alt="Aperçu du produit"
+     hidden style="width:180px;max-height:180px;object-fit:contain;border-radius:10px;margin-top:10px;">
+
+        <label class="checkbox-label">
+          <input id="productAvailable" type="checkbox" checked>
+          Publier ce produit sur la boutique
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" class="gold-button">Enregistrer</button>
+          <button type="button" class="secondary-button" id="cancelProductForm">
+            Annuler
+          </button>
+        </div>
+      </form>
+
+      <div id="productMessage" class="message" role="status"></div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Produit</th>
+              <th>Prix</th>
+              <th>Stock</th>
+              <th>État</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productTable">
+            <tr>
+              <td colspan="5">Les produits apparaîtront ici après connexion à Appwrite.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-section">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">AMSRON DÉLICE</p>
+          <h2>Menu du restaurant</h2>
+        </div>
+        <button class="gold-button" id="showMenuForm">
+          + Ajouter un plat
+        </button>
+      </div>
+
+      <form id="menuForm" class="admin-form" hidden>
+        <h3>Nouveau plat</h3>
+
+        <label for="menuName">Nom du plat</label>
+        <input id="menuName" type="text" required maxlength="150">
+
+        <label for="menuDescription">Description</label>
+        <textarea id="menuDescription" rows="3"></textarea>
+
+        <label for="menuPrice">Prix (FCFA)</label>
+        <input id="menuPrice" type="number" min="0" step="1" required>
+
+        <label for="menuCategory">Catégorie du menu</label>
+        <input id="menuCategory" type="text" required
+               placeholder="Plats, boissons, desserts…">
+
+        <label for="menuImage">Photo du plat</label>
+<input id="menuImage" type="file" accept="image/*">
+<img id="menuImagePreview" alt="Aperçu du plat"
+     hidden style="width:180px;max-height:180px;object-fit:contain;border-radius:10px;margin-top:10px;">
+
+        <label class="checkbox-label">
+          <input id="menuAvailable" type="checkbox" checked>
+          Rendre ce plat disponible
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" class="gold-button">Enregistrer le plat</button>
+          <button type="button" class="secondary-button" id="cancelMenuForm">
+            Annuler
+          </button>
+        </div>
+      </form>
+
+      <div id="menuMessage" class="message" role="status"></div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Plat</th>
+              <th>Prix</th>
+              <th>Catégorie</th>
+              <th>État</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="menuTable">
+            <tr>
+              <td colspan="5">Les plats apparaîtront ici après connexion à Appwrite.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-section">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">SUIVI DES VENTES</p>
+          <h2>Commandes des clients</h2>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Téléphone</th>
+              <th>Montant</th>
+              <th>Paiement</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="orderTable">
+            <tr>
+              <td colspan="5">Les commandes apparaîtront ici après connexion sécurisée.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="admin-footer">
+    AMSRON HOUSE — Administration
+  </footer>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
