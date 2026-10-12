@@ -514,12 +514,12 @@ productForm.addEventListener("submit", async (event) => {
     }
 
     const payload = {
-      Nom: name,
-      Prix: price,
-      category: category,
-      image_url: imageUrl,
-      is_available: productAvailable.checked ? "Vrai" : "Faux"
-    };
+  name: name,
+  category: category,
+  price: price,
+  image_url: imageUrl,
+  is_available: productAvailable.checked ? "Vrai" : "Faux"
+};
 
     // N'ajouter la description que si la colonne existe dans Appwrite.
     if (description) {
