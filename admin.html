@@ -3,223 +3,210 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#111111">
+  <meta name="description" content="Administration de la boutique AMSRON HOUSE">
   <title>Administration | AMSRON HOUSE</title>
   <link rel="stylesheet" href="admin.css">
 </head>
-<body>
+
+<body class="admin-body">
   <header class="admin-header">
-    <a href="index.html" class="admin-logo">
-      AMSRON <span>HOUSE</span>
-    </a>
-    <div class="admin-header-right">
-      <span>Espace administration</span>
-      <a href="index.html" class="site-link">Voir le site</a>
+    <div class="admin-container admin-header-content">
+      <a href="index.html" class="admin-logo">AMSRON HOUSE</a>
+      <span class="admin-label">Administration</span>
     </div>
   </header>
 
-  <main class="admin-container">
-    <section class="welcome">
-      <p class="eyebrow">GESTION DE LA BOUTIQUE</p>
-      <h1>Tableau de bord</h1>
-      <p>Gérez vos produits, vos prix, votre restaurant et vos commandes.</p>
+  <main class="admin-container admin-main">
+    <section class="admin-welcome">
+      <p class="admin-eyebrow">ESPACE DE GESTION</p>
+      <h1>Administration</h1>
+      <p>Gérez les produits de votre boutique en ligne.</p>
     </section>
 
-    <section class="stats">
-      <article class="stat-card">
-        <span>Produits</span>
-        <strong id="productCount">—</strong>
-      </article>
-      <article class="stat-card">
-        <span>Commandes</span>
-        <strong id="orderCount">—</strong>
-      </article>
-      <article class="stat-card">
-        <span>Plats du restaurant</span>
-        <strong id="menuCount">—</strong>
-      </article>
+    <!-- CONNEXION -->
+    <section id="loginSection" class="admin-panel">
+      <h2>Connexion administrateur</h2>
+      <p class="admin-description">
+        Connectez-vous pour accéder à la gestion de la boutique.
+      </p>
+
+      <form id="adminLoginForm">
+        <div class="admin-form-group">
+          <label for="adminEmail">Adresse e-mail</label>
+          <input
+            type="email"
+            id="adminEmail"
+            name="email"
+            autocomplete="username"
+            placeholder="Votre adresse e-mail"
+            required
+          >
+        </div>
+
+        <div class="admin-form-group">
+          <label for="adminPassword">Mot de passe</label>
+          <input
+            type="password"
+            id="adminPassword"
+            name="password"
+            autocomplete="current-password"
+            placeholder="Votre mot de passe"
+            required
+          >
+        </div>
+
+        <div id="loginMessage" class="admin-message" role="status"></div>
+
+        <button id="loginButton" class="admin-btn" type="submit">
+          Se connecter
+        </button>
+      </form>
     </section>
 
-    <section class="admin-section">
-      <div class="section-title">
+    <!-- TABLEAU DE BORD -->
+    <section id="dashboardSection" hidden>
+      <div class="admin-dashboard-heading">
         <div>
-          <p class="eyebrow">AMSRON STYLE</p>
+          <p class="admin-eyebrow">TABLEAU DE BORD</p>
           <h2>Gestion des produits</h2>
         </div>
-        <button class="gold-button" id="showProductForm">
-          + Ajouter un produit
+
+        <button id="logoutButton" class="admin-btn admin-btn-secondary" type="button">
+          Déconnexion
         </button>
       </div>
 
-      <form id="productForm" class="admin-form" hidden>
-        <h3 id="productFormTitle">Nouveau produit</h3>
-        <input type="hidden" id="productId">
+      <div class="admin-stats">
+        <article class="admin-stat-card">
+          <span class="admin-stat-label">Produits enregistrés</span>
+          <strong id="productCount">0</strong>
+        </article>
 
-        <label for="productName">Nom du produit</label>
-        <input id="productName" type="text" required maxlength="150"
-               placeholder="Ex. : Chemise homme">
+        <article class="admin-stat-card">
+          <span class="admin-stat-label">Produits disponibles</span>
+          <strong id="availableCount">0</strong>
+        </article>
+      </div>
 
-        <label for="productDescription">Description</label>
-        <textarea id="productDescription" rows="3"
-                  placeholder="Décrivez le produit"></textarea>
+      <!-- AJOUT ET MODIFICATION -->
+      <section class="admin-panel">
+        <h2 id="productFormTitle">Ajouter un produit</h2>
 
-        <div class="form-grid">
-          <div>
-            <label for="productPrice">Prix (FCFA)</label>
-            <input id="productPrice" type="number" min="0" step="1"
-                   required placeholder="Ex. : 10000">
+        <form id="productForm">
+          <input type="hidden" id="productId">
+
+          <div class="admin-form-group">
+            <label for="productName">Nom du produit</label>
+            <input
+              type="text"
+              id="productName"
+              name="productName"
+              placeholder="Ex. : Chemise élégante"
+              required
+            >
           </div>
-          <div>
-            <label for="productStock">Stock disponible</label>
-            <input id="productStock" type="number" min="0" step="1"
-                   required value="0">
+
+          <div class="admin-form-group">
+            <label for="productPrice">Prix en FCFA</label>
+            <input
+              type="number"
+              id="productPrice"
+              name="productPrice"
+              min="0"
+              step="1"
+              placeholder="Ex. : 15000"
+              required
+            >
           </div>
-        </div>
 
-        <label for="productCategory">Catégorie</label>
-        <input id="productCategory" type="text" required
-               placeholder="Homme, femme, enfant, accessoires…">
+          <div class="admin-form-group">
+            <label for="productImage">URL de l'image</label>
+            <input
+              type="url"
+              id="productImage"
+              name="productImage"
+              placeholder="https://..."
+            >
+            <small>Collez ici le lien public de l'image du produit.</small>
+          </div>
 
-        <label for="productImage">Photo du produit</label>
-<input id="productImage" type="file" accept="image/*">
-<img id="productImagePreview" alt="Aperçu du produit"
-     hidden style="width:180px;max-height:180px;object-fit:contain;border-radius:10px;margin-top:10px;">
+          <div class="admin-form-group">
+            <label for="productDescription">Description</label>
+            <textarea
+              id="productDescription"
+              name="productDescription"
+              rows="4"
+              placeholder="Décrivez le produit..."
+            ></textarea>
+          </div>
 
-        <label class="checkbox-label">
-          <input id="productAvailable" type="checkbox" checked>
-          Publier ce produit sur la boutique
-        </label>
+          <div class="admin-form-group admin-checkbox-group">
+            <input
+              type="checkbox"
+              id="productAvailable"
+              name="productAvailable"
+              checked
+            >
+            <label for="productAvailable">Produit disponible à la vente</label>
+          </div>
 
-        <div class="form-actions">
-          <button type="submit" class="gold-button">Enregistrer</button>
-          <button type="button" class="secondary-button" id="cancelProductForm">
-            Annuler
+          <div id="productFormMessage" class="admin-message" role="status"></div>
+
+          <div class="admin-form-actions">
+            <button id="saveProductButton" class="admin-btn" type="submit">
+              Enregistrer le produit
+            </button>
+
+            <button id="cancelEditButton" class="admin-btn admin-btn-secondary" type="button" hidden>
+              Annuler la modification
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- LISTE DES PRODUITS -->
+      <section class="admin-panel">
+        <div class="admin-list-heading">
+          <div>
+            <h2>Mes produits</h2>
+            <p class="admin-description">
+              Consultez et gérez les produits enregistrés.
+            </p>
+          </div>
+
+          <button id="refreshProductsButton" class="admin-btn admin-btn-secondary" type="button">
+            Actualiser
           </button>
         </div>
-      </form>
 
-      <div id="productMessage" class="message" role="status"></div>
+        <div id="adminProductsMessage" class="admin-message" role="status"></div>
 
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Produit</th>
-              <th>Prix</th>
-              <th>Stock</th>
-              <th>État</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="productTable">
-            <tr>
-              <td colspan="5">Les produits apparaîtront ici après connexion à Appwrite.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+        <div class="admin-table-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Produit</th>
+                <th>Prix</th>
+                <th>Disponibilité</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
 
-    <section class="admin-section">
-      <div class="section-title">
-        <div>
-          <p class="eyebrow">AMSRON DÉLICE</p>
-          <h2>Menu du restaurant</h2>
+            <tbody id="adminProductList">
+              <tr>
+                <td colspan="4">Chargement des produits...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <button class="gold-button" id="showMenuForm">
-          + Ajouter un plat
-        </button>
-      </div>
-
-      <form id="menuForm" class="admin-form" hidden>
-        <h3>Nouveau plat</h3>
-
-        <label for="menuName">Nom du plat</label>
-        <input id="menuName" type="text" required maxlength="150">
-
-        <label for="menuDescription">Description</label>
-        <textarea id="menuDescription" rows="3"></textarea>
-
-        <label for="menuPrice">Prix (FCFA)</label>
-        <input id="menuPrice" type="number" min="0" step="1" required>
-
-        <label for="menuCategory">Catégorie du menu</label>
-        <input id="menuCategory" type="text" required
-               placeholder="Plats, boissons, desserts…">
-
-        <label for="menuImage">Photo du plat</label>
-<input id="menuImage" type="file" accept="image/*">
-<img id="menuImagePreview" alt="Aperçu du plat"
-     hidden style="width:180px;max-height:180px;object-fit:contain;border-radius:10px;margin-top:10px;">
-
-        <label class="checkbox-label">
-          <input id="menuAvailable" type="checkbox" checked>
-          Rendre ce plat disponible
-        </label>
-
-        <div class="form-actions">
-          <button type="submit" class="gold-button">Enregistrer le plat</button>
-          <button type="button" class="secondary-button" id="cancelMenuForm">
-            Annuler
-          </button>
-        </div>
-      </form>
-
-      <div id="menuMessage" class="message" role="status"></div>
-
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Plat</th>
-              <th>Prix</th>
-              <th>Catégorie</th>
-              <th>État</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="menuTable">
-            <tr>
-              <td colspan="5">Les plats apparaîtront ici après connexion à Appwrite.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="admin-section">
-      <div class="section-title">
-        <div>
-          <p class="eyebrow">SUIVI DES VENTES</p>
-          <h2>Commandes des clients</h2>
-        </div>
-      </div>
-
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Client</th>
-              <th>Téléphone</th>
-              <th>Montant</th>
-              <th>Paiement</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody id="orderTable">
-            <tr>
-              <td colspan="5">Les commandes apparaîtront ici après connexion sécurisée.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      </section>
     </section>
   </main>
 
   <footer class="admin-footer">
-    AMSRON HOUSE — Administration
+    <p>© <span id="adminYear"></span> AMSRON HOUSE — Administration</p>
   </footer>
 
-  <script type="module" src="admin.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>
