@@ -71,7 +71,11 @@
           <h2>Gestion des produits</h2>
         </div>
 
-        <button id="logoutButton" class="admin-btn admin-btn-secondary" type="button">
+        <button
+          id="logoutButton"
+          class="admin-btn admin-btn-secondary"
+          type="button"
+        >
           Déconnexion
         </button>
       </div>
@@ -119,15 +123,31 @@
             >
           </div>
 
+          <!-- SÉLECTION DE LA PHOTO -->
           <div class="admin-form-group">
-            <label for="productImage">URL de l'image</label>
+            <label for="productImage">Photo du produit</label>
+
             <input
-              type="url"
+              type="file"
               id="productImage"
               name="productImage"
-              placeholder="https://..."
+              accept="image/jpeg,image/png,image/webp,image/gif"
             >
-            <small>Collez ici le lien public de l'image du produit.</small>
+
+            <small>
+              Choisissez une image depuis votre ordinateur.
+              Formats acceptés : JPG, PNG, WebP ou GIF.
+            </small>
+
+            <div id="productImagePreviewContainer" hidden>
+              <p>Aperçu de la photo :</p>
+              <img
+                id="productImagePreview"
+                src=""
+                alt="Aperçu du produit"
+                style="display:block;max-width:220px;max-height:220px;object-fit:contain;border-radius:8px;margin-top:10px;"
+              >
+            </div>
           </div>
 
           <div class="admin-form-group">
@@ -147,17 +167,28 @@
               name="productAvailable"
               checked
             >
-            <label for="productAvailable">Produit disponible à la vente</label>
+            <label for="productAvailable">
+              Produit disponible à la vente
+            </label>
           </div>
 
           <div id="productFormMessage" class="admin-message" role="status"></div>
 
           <div class="admin-form-actions">
-            <button id="saveProductButton" class="admin-btn" type="submit">
+            <button
+              id="saveProductButton"
+              class="admin-btn"
+              type="submit"
+            >
               Enregistrer le produit
             </button>
 
-            <button id="cancelEditButton" class="admin-btn admin-btn-secondary" type="button" hidden>
+            <button
+              id="cancelEditButton"
+              class="admin-btn admin-btn-secondary"
+              type="button"
+              hidden
+            >
               Annuler la modification
             </button>
           </div>
@@ -174,7 +205,11 @@
             </p>
           </div>
 
-          <button id="refreshProductsButton" class="admin-btn admin-btn-secondary" type="button">
+          <button
+            id="refreshProductsButton"
+            class="admin-btn admin-btn-secondary"
+            type="button"
+          >
             Actualiser
           </button>
         </div>
@@ -204,8 +239,45 @@
   </main>
 
   <footer class="admin-footer">
-    <p>© <span id="adminYear"></span> AMSRON HOUSE — Administration</p>
+    <p>
+      © <span id="adminYear"></span> AMSRON HOUSE — Administration
+    </p>
   </footer>
+
+  <!-- APERÇU DE LA PHOTO CHOISIE -->
+  <script>
+    const imageInput = document.getElementById("productImage");
+    const previewContainer = document.getElementById("productImagePreviewContainer");
+    const previewImage = document.getElementById("productImagePreview");
+
+    let previewObjectUrl = null;
+
+    imageInput.addEventListener("change", function () {
+      const file = this.files && this.files[0];
+
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = null;
+      }
+
+      if (!file) {
+        previewImage.removeAttribute("src");
+        previewContainer.hidden = true;
+        return;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        alert("Veuillez choisir un fichier image.");
+        this.value = "";
+        previewContainer.hidden = true;
+        return;
+      }
+
+      previewObjectUrl = URL.createObjectURL(file);
+      previewImage.src = previewObjectUrl;
+      previewContainer.hidden = false;
+    });
+  </script>
 
   <script src="admin.js"></script>
 </body>
