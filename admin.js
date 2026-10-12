@@ -1,372 +1,491 @@
-import { Client, Account, Storage, TablesDB, ID } from "https://cdn.jsdelivr.net/npm/appwrite@20.0.0/+esm";
+// ============================================
+// AMSRON HOUSE — ADMINISTRATION
+// Connexion, produits, modification et suppression
+// ============================================
 
-const client = new Client()
-  .setEndpoint("https://fra.cloud.appwrite.io/v1")
-  .setProject("6ac8d53b00374f7bdd20");
-
-const account = new Account(client);
-const tablesDB = new TablesDB(client);
-
+const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
+const APPWRITE_PROJECT_ID = "6ac8d53b00374f7bdd20";
 const DATABASE_ID = "amsron-database";
-const PRODUCTS_TABLE_ID = "products";
-const MENU_TABLE_ID = "restaurant_menu";
-const storage = new Storage(client);
+const TABLE_ID = "products";
 
-const BUCKET_ID = "6ac916bc000bcac7f703";
+// Éléments de la page
+const loginSection = document.getElementById("loginSection");
+const dashboardSection = document.getElementById("dashboardSection");
+const adminLoginForm = document.getElementById("adminLoginForm");
+const adminEmail = document.getElementById("adminEmail");
+const adminPassword = document.getElementById("adminPassword");
+const loginMessage = document.getElementById("loginMessage");
+const loginButton = document.getElementById("loginButton");
+const logoutButton = document.getElementById("logoutButton");
 
-const main = document.querySelector(".admin-container");
-const footer = document.querySelector(".admin-footer");
+const productCount = document.getElementById("productCount");
+const availableCount = document.getElementById("availableCount");
 
-const loginPanel = document.createElement("section");
-loginPanel.className = "admin-container";
-loginPanel.innerHTML = `
-  <section class="admin-section" style="max-width:520px;margin:50px auto">
-    <p class="eyebrow">ACCÈS SÉCURISÉ</p>
-    <h1>Connexion administrateur</h1>
-    <p style="color:#b9b9b9;margin-bottom:24px">
-      Connecte-toi avec le compte autorisé d'AMSRON HOUSE.
-    </p>
+const productForm = document.getElementById("productForm");
+const productFormTitle = document.getElementById("productFormTitle");
+const productId = document.getElementById("productId");
+const productName = document.getElementById("productName");
+const productPrice = document.getElementById("productPrice");
+const productImage = document.getElementById("productImage");
+const productDescription = document.getElementById("productDescription");
+const productAvailable = document.getElementById("productAvailable");
+const productFormMessage = document.getElementById("productFormMessage");
+const saveProductButton = document.getElementById("saveProductButton");
+const cancelEditButton = document.getElementById("cancelEditButton");
 
-    <form id="loginForm" class="admin-form">
-      <label for="loginEmail">Adresse e-mail</label>
-      <input id="loginEmail" type="email" required autocomplete="username">
+const refreshProductsButton = document.getElementById(
+  "refreshProductsButton"
+);
+const adminProductsMessage = document.getElementById(
+  "adminProductsMessage"
+);
+const adminProductList = document.getElementById("adminProductList");
 
-      <label for="loginPassword">Mot de passe</label>
-      <input id="loginPassword" type="password" required
-        autocomplete="current-password">
+const adminYear = document.getElementById("adminYear");
 
-      <button class="gold-button" type="submit" style="margin-top:20px">
-        Se connecter
-      </button>
-
-      <p id="loginMessage" class="message" role="status"
-        aria-live="polite" style="margin-top:16px"></p>
-    </form>
-  </section>
-`;
-
-document.body.insertBefore(loginPanel, main);
-main.hidden = true;
-if (footer) footer.hidden = true;
-
-function showLogin(message = "") {
-  loginPanel.hidden = false;
-  main.hidden = true;
-  if (footer) footer.hidden = true;
-  document.getElementById("loginMessage").textContent = message;
+if (adminYear) {
+  adminYear.textContent = new Date().getFullYear();
 }
 
-function showDashboard() {
-  loginPanel.hidden = true;
-  main.hidden = false;
-  if (footer) footer.hidden = false;
-
-  loadProducts();
-
-  if (!document.getElementById("logoutButton")) {
-    const button = document.createElement("button");
-    button.id = "logoutButton";
-    button.className = "secondary-button";
-    button.textContent = "Déconnexion";
-    button.addEventListener("click", async () => {
-      try {
-        await account.deleteSession("current");
-      } catch (error) {
-        console.error("Erreur de déconnexion :", error);
-      }
-      showLogin("Tu es déconnecté.");
-    });
-
-    document.querySelector(".admin-header-right")?.appendChild(button);
-  }
-}
-
-async function verifyAdmin() {
-  try {
-    const user = await account.get();
-
-    if (!Array.isArray(user.labels) || !user.labels.includes("admin")) {
-      await account.deleteSession("current");
-      showLogin("Ce compte n'a pas le label administrateur autorisé.");
-      return;
+// Toutes les requêtes passent par cette fonction.
+async function appwriteRequest(path, options = {}) {
+  const response = await fetch(`${APPWRITE_ENDPOINT}${path}`, {
+    credentials: "include",
+    ...options,
+    headers: {
+      "X-Appwrite-Project": APPWRITE_PROJECT_ID,
+      "Content-Type": "application/json",
+      ...(options.headers || {})
     }
+  });
 
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || `Erreur Appwrite (${response.status})`
+    );
+  }
+
+  return data;
+}
+
+// Affichage sécurisé des messages.
+function showMessage(element, message, type = "info") {
+  if (!element) return;
+
+  element.textContent = message;
+  element.dataset.type = type;
+}
+
+// Convertit les valeurs d'Appwrite en disponibilité.
+function isAvailable(value) {
+  return (
+    value === true ||
+    value === 1 ||
+    value === "1" ||
+    String(value).toLowerCase() === "true" ||
+    String(value).toLowerCase() === "vrai"
+  );
+}
+
+// Récupère les produits dans Appwrite.
+async function getProducts() {
+  const result = await appwriteRequest(
+    `/tablesdb/${DATABASE_ID}/tables/${TABLE_ID}/rows?limit=100`
+  );
+
+  return result.rows || [];
+}
+
+// Vérifie si l'utilisateur possède une session.
+async function checkSession() {
+  try {
+    await appwriteRequest("/account");
     showDashboard();
-  } catch {
+    await loadProducts();
+  } catch (error) {
     showLogin();
   }
 }
 
-document.getElementById("loginForm").addEventListener("submit", async (event) => {
-  event.preventDefault();
+function showLogin() {
+  if (loginSection) loginSection.hidden = false;
+  if (dashboardSection) dashboardSection.hidden = true;
+}
 
-  const email = document.getElementById("loginEmail").value.trim();
-  const password = document.getElementById("loginPassword").value;
-  const message = document.getElementById("loginMessage");
-  const button = event.submitter;
+function showDashboard() {
+  if (loginSection) loginSection.hidden = true;
+  if (dashboardSection) dashboardSection.hidden = false;
+}
 
-  button.disabled = true;
-  message.textContent = "Connexion en cours…";
+// Connexion administrateur.
+if (adminLoginForm) {
+  adminLoginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
 
-  try {
-    await account.createEmailPasswordSession(email, password);
-    const user = await account.get();
+    const email = adminEmail.value.trim();
+    const password = adminPassword.value;
 
-    if (!Array.isArray(user.labels) || !user.labels.includes("admin")) {
-      await account.deleteSession("current");
-      showLogin("Accès refusé : ce compte n'est pas administrateur.");
+    if (!email || !password) {
+      showMessage(
+        loginMessage,
+        "Entre ton adresse e-mail et ton mot de passe.",
+        "error"
+      );
       return;
     }
 
-    showDashboard();
-  } catch (error) {
-    console.error("Erreur de connexion :", error);
-    message.textContent =
-      "Connexion impossible. Vérifie ton e-mail, ton mot de passe et la configuration Appwrite.";
-  } finally {
-    button.disabled = false;
-  }
-});
+    loginButton.disabled = true;
+    loginButton.textContent = "Connexion en cours...";
+    showMessage(loginMessage, "");
 
-verifyAdmin();
-/* Affichage et fermeture des formulaires */
+    try {
+      await appwriteRequest("/account/sessions/email", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
 
-// Bouton Ajouter un produit
-const showProductButton = document.getElementById("showProductForm");
-const productForm = document.getElementById("productForm");
-const cancelProductButton = document.getElementById("cancelProductForm");
+      adminPassword.value = "";
+      showDashboard();
+      await loadProducts();
 
-showProductButton?.addEventListener("click", () => {
-  productForm.hidden = false;
-  productForm.reset();
-  document.getElementById("productId").value = "";
-  document.getElementById("productFormTitle").textContent = "Nouveau produit";
-  productForm.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
-cancelProductButton?.addEventListener("click", () => {
-  productForm.hidden = true;
-  productForm.reset();
-});
-
-// Bouton Ajouter un plat
-const showMenuButton = document.getElementById("showMenuForm");
-const menuForm = document.getElementById("menuForm");
-const cancelMenuButton = document.getElementById("cancelMenuForm");
-
-showMenuButton?.addEventListener("click", () => {
-  menuForm.hidden = false;
-  menuForm.reset();
-  document.getElementById("menuAvailable").checked = true;
-  menuForm.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
-cancelMenuButton?.addEventListener("click", () => {
-  menuForm.hidden = true;
-  menuForm.reset();
-});
-function setupImagePreview(inputId, previewId) {
-  const input = document.getElementById(inputId);
-  const preview = document.getElementById(previewId);
-
-  if (!input || !preview) return;
-
-  let currentPreviewUrl = null;
-
-  input.addEventListener("change", () => {
-    const file = input.files?.[0];
-
-    if (currentPreviewUrl) {
-      URL.revokeObjectURL(currentPreviewUrl);
-      currentPreviewUrl = null;
+      showMessage(loginMessage, "");
+    } catch (error) {
+      showMessage(
+        loginMessage,
+        "Connexion impossible : " + error.message,
+        "error"
+      );
+    } finally {
+      loginButton.disabled = false;
+      loginButton.textContent = "Se connecter";
     }
-
-    if (!file) {
-      preview.hidden = true;
-      preview.removeAttribute("src");
-      return;
-    }
-
-    if (!file.type.startsWith("image/")) {
-      input.value = "";
-      preview.hidden = true;
-      alert("Choisis un fichier image.");
-      return;
-    }
-
-    currentPreviewUrl = URL.createObjectURL(file);
-    preview.src = currentPreviewUrl;
-    preview.hidden = false;
   });
 }
 
-setupImagePreview("productImage", "productImagePreview");
-setupImagePreview("menuImage", "menuImagePreview");
-/* Envoi d'une image vers Appwrite Storage */
-async function uploadImage(file) {
-  if (!file) {
-    return "";
-  }
+// Déconnexion.
+if (logoutButton) {
+  logoutButton.addEventListener("click", async () => {
+    try {
+      await appwriteRequest("/account/sessions/current", {
+        method: "DELETE"
+      });
+    } catch (error) {
+      console.error("Erreur de déconnexion :", error);
+    }
 
-  if (!file.type.startsWith("image/")) {
-    throw new Error("Le fichier choisi n'est pas une image.");
-  }
-
-  const uploadedFile = await storage.createFile(
-    BUCKET_ID,
-    ID.unique(),
-    file
-  );
-
-  return `https://fra.cloud.appwrite.io/v1/storage/buckets/${BUCKET_ID}/files/${uploadedFile.$id}/view?project=6ac8d53b00374f7bdd20`;
+    showLogin();
+  });
 }
-/* Enregistrement d'un produit dans Appwrite */
-async function saveProduct(event) {
-  event.preventDefault();
 
-  const form = document.getElementById("productForm");
-  const submitButton = form.querySelector('button[type="submit"]');
+// Affiche les statistiques.
+function updateStatistics(products) {
+  if (productCount) {
+    productCount.textContent = products.length;
+  }
 
-  try {
-    submitButton.disabled = true;
-
-    const imageFile = document.getElementById("productImage").files[0];
-    const imageUrl = imageFile ? await uploadImage(imageFile) : "";
-
-    const productData = {
-      name: document.getElementById("productName").value.trim(),
-      description: document.getElementById("productDescription").value.trim(),
-      price: Number(document.getElementById("productPrice").value),
-      stock: Number(document.getElementById("productStock").value),
-      category: document.getElementById("productCategory").value,
-      image_url: imageUrl,
-      is_available: document.getElementById("productAvailable").checked
-    };
-
-    if (!productData.name || !productData.category) {
-      throw new Error("Remplis le nom et la catégorie du produit.");
-    }
-
-    if (!Number.isFinite(productData.price) || productData.price < 0) {
-      throw new Error("Vérifie le prix du produit.");
-    }
-
-    if (!Number.isInteger(productData.stock) || productData.stock < 0) {
-      throw new Error("Vérifie le stock du produit.");
-    }
-
-    await tablesDB.createRow({
-  databaseId: DATABASE_ID,
-  tableId: PRODUCTS_TABLE_ID,
-  rowId: ID.unique(),
-  data: productData
-});
-
-    await loadProducts();
-alert("Produit enregistré avec succès !");
-form.reset();
-    document.getElementById("productImagePreview").hidden = true;
-    form.hidden = true;
-  } catch (error) {
-    console.error("Erreur lors de l'enregistrement :", error);
-    alert("Impossible d'enregistrer le produit : " + error.message);
-  } finally {
-    submitButton.disabled = false;
+  if (availableCount) {
+    availableCount.textContent = products.filter((product) =>
+      isAvailable(product.is_available)
+    ).length;
   }
 }
 
-document.getElementById("productForm")
-  ?.addEventListener("submit", saveProduct);
-  /* Récupération et affichage des produits depuis Appwrite */
-async function loadProducts() {
-  const productTable = document.getElementById("productTable");
-  const productCount = document.getElementById("productCount");
+// Crée un élément HTML avec du texte sécurisé.
+function createTextElement(tag, className, text) {
+  const element = document.createElement(tag);
+  element.className = className;
+  element.textContent = text;
+  return element;
+}
 
-  if (!productTable) return;
+// Affiche la liste des produits.
+function renderProducts(products) {
+  adminProductList.replaceChildren();
+  updateStatistics(products);
 
-  productTable.replaceChildren();
+  if (products.length === 0) {
+    showMessage(
+      adminProductsMessage,
+      "Aucun produit trouvé dans Appwrite.",
+      "info"
+    );
+    return;
+  }
 
-  const loadingRow = document.createElement("tr");
-  const loadingCell = document.createElement("td");
-  loadingCell.colSpan = 5;
-  loadingCell.textContent = "Chargement des produits...";
-  loadingRow.appendChild(loadingCell);
-  productTable.appendChild(loadingRow);
+  showMessage(adminProductsMessage, "");
 
-  try {
-    const response = await tablesDB.listRows({
-      databaseId: DATABASE_ID,
-      tableId: PRODUCTS_TABLE_ID
+  products.forEach((product) => {
+    const card = document.createElement("article");
+    card.className = "admin-product-card";
+
+    const name = product.Nom || "Produit sans nom";
+    const price = Number(product.Prix || 0);
+    const available = isAvailable(product.is_available);
+
+    const title = createTextElement(
+      "h3",
+      "admin-product-name",
+      name
+    );
+
+    const priceElement = createTextElement(
+      "p",
+      "admin-product-price",
+      `${price.toLocaleString("fr-FR")} F CFA`
+    );
+
+    const status = createTextElement(
+      "p",
+      "admin-product-status",
+      available ? "Disponible" : "Indisponible"
+    );
+
+    const description = createTextElement(
+      "p",
+      "admin-product-description",
+      product.description || product.Description || ""
+    );
+
+    const actions = document.createElement("div");
+    actions.className = "admin-product-actions";
+
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.textContent = "Modifier";
+    editButton.addEventListener("click", () => {
+      editProduct(product);
     });
 
-    const products = response.rows || [];
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "Supprimer";
+    deleteButton.addEventListener("click", () => {
+      deleteProduct(product.$id || product.$sequence);
+    });
 
-    productTable.replaceChildren();
+    actions.append(editButton, deleteButton);
+    card.append(title, priceElement, status, description, actions);
 
-    if (productCount) {
-      productCount.textContent = products.length;
+    if (product.image_url) {
+      const image = document.createElement("img");
+      image.src = product.image_url;
+      image.alt = name;
+      image.loading = "lazy";
+      image.className = "admin-product-image";
+
+      image.addEventListener("error", () => {
+        image.hidden = true;
+      });
+
+      card.prepend(image);
     }
 
-    if (products.length === 0) {
-      const row = document.createElement("tr");
-      const cell = document.createElement("td");
-      cell.colSpan = 5;
-      cell.textContent = "Aucun produit enregistré.";
-      row.appendChild(cell);
-      productTable.appendChild(row);
+    adminProductList.appendChild(card);
+  });
+}
+
+// Recharge les produits.
+async function loadProducts() {
+  showMessage(adminProductsMessage, "Chargement des produits...");
+
+  if (refreshProductsButton) {
+    refreshProductsButton.disabled = true;
+  }
+
+  try {
+    const products = await getProducts();
+    renderProducts(products);
+  } catch (error) {
+    showMessage(
+      adminProductsMessage,
+      "Impossible de charger les produits : " + error.message,
+      "error"
+    );
+    console.error(error);
+  } finally {
+    if (refreshProductsButton) {
+      refreshProductsButton.disabled = false;
+    }
+  }
+}
+
+if (refreshProductsButton) {
+  refreshProductsButton.addEventListener("click", loadProducts);
+}
+
+// Prépare la modification d'un produit.
+function editProduct(product) {
+  productId.value = product.$id || "";
+
+  productName.value = product.Nom || "";
+  productPrice.value = product.Prix ?? "";
+  productImage.value = product.image_url || "";
+  productDescription.value =
+    product.description || product.Description || "";
+  productAvailable.checked = isAvailable(product.is_available);
+
+  productFormTitle.textContent = "Modifier le produit";
+  saveProductButton.textContent = "Enregistrer les modifications";
+  cancelEditButton.hidden = false;
+
+  showMessage(productFormMessage, "");
+
+  productForm.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+}
+
+// Réinitialise le formulaire.
+function resetProductForm() {
+  productForm.reset();
+  productId.value = "";
+  productAvailable.checked = true;
+  productFormTitle.textContent = "Ajouter un produit";
+  saveProductButton.textContent = "Enregistrer le produit";
+  cancelEditButton.hidden = true;
+  showMessage(productFormMessage, "");
+}
+
+if (cancelEditButton) {
+  cancelEditButton.addEventListener("click", resetProductForm);
+}
+
+// Ajout ou modification d'un produit.
+if (productForm) {
+  productForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const name = productName.value.trim();
+    const price = Number(productPrice.value);
+    const imageUrl = productImage.value.trim();
+    const description = productDescription.value.trim();
+    const available = productAvailable.checked;
+
+    if (!name) {
+      showMessage(
+        productFormMessage,
+        "Le nom du produit est obligatoire.",
+        "error"
+      );
       return;
     }
 
-    products.forEach((product) => {
-      const row = document.createElement("tr");
-
-      const nameCell = document.createElement("td");
-      nameCell.textContent = product.name || "Sans nom";
-
-      const priceCell = document.createElement("td");
-      priceCell.textContent =
-        `${Number(product.price || 0).toLocaleString("fr-FR")} FCFA`;
-
-      const stockCell = document.createElement("td");
-      stockCell.textContent = String(product.stock ?? 0);
-
-      const statusCell = document.createElement("td");
-      const available = product.is_available;
-      const isAvailable =
-        available === true ||
-        available === "true" ||
-        available === "1";
-
-      statusCell.textContent = isAvailable
-        ? "Publié"
-        : "Non publié";
-
-      const actionsCell = document.createElement("td");
-      actionsCell.textContent = "—";
-
-      row.append(
-        nameCell,
-        priceCell,
-        stockCell,
-        statusCell,
-        actionsCell
+    if (!Number.isFinite(price) || price < 0) {
+      showMessage(
+        productFormMessage,
+        "Entre un prix valide.",
+        "error"
       );
+      return;
+    }
 
-      productTable.appendChild(row);
-    });
+    const payload = {
+      Nom: name,
+      Prix: price,
+      image_url: imageUrl,
+      description: description,
+      is_available: available ? "Vrai" : "Faux"
+    };
 
+    saveProductButton.disabled = true;
+    saveProductButton.textContent = "Enregistrement...";
+
+    try {
+      const id = productId.value.trim();
+
+      if (id) {
+        await appwriteRequest(
+          `/tablesdb/${DATABASE_ID}/tables/${TABLE_ID}/rows/${encodeURIComponent(id)}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ data: payload })
+          }
+        );
+
+        showMessage(
+          productFormMessage,
+          "Produit modifié avec succès.",
+          "success"
+        );
+      } else {
+        await appwriteRequest(
+          `/tablesdb/${DATABASE_ID}/tables/${TABLE_ID}/rows`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              rowId: "unique()",
+              data: payload
+            })
+          }
+        );
+
+        showMessage(
+          productFormMessage,
+          "Produit ajouté avec succès.",
+          "success"
+        );
+      }
+
+      resetProductForm();
+      await loadProducts();
+    } catch (error) {
+      showMessage(
+        productFormMessage,
+        "Enregistrement impossible : " + error.message,
+        "error"
+      );
+      console.error(error);
+    } finally {
+      saveProductButton.disabled = false;
+      saveProductButton.textContent = productId.value
+        ? "Enregistrer les modifications"
+        : "Enregistrer le produit";
+    }
+  });
+}
+
+// Suppression d'un produit.
+async function deleteProduct(id) {
+  if (!id) {
+    alert("Identifiant du produit introuvable.");
+    return;
+  }
+
+  const confirmed = confirm(
+    "Veux-tu vraiment supprimer ce produit ? Cette action est irréversible."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await appwriteRequest(
+      `/tablesdb/${DATABASE_ID}/tables/${TABLE_ID}/rows/${encodeURIComponent(id)}`,
+      { method: "DELETE" }
+    );
+
+    showMessage(
+      adminProductsMessage,
+      "Produit supprimé avec succès.",
+      "success"
+    );
+
+    await loadProducts();
   } catch (error) {
-    console.error("Erreur de chargement des produits :", error);
-
-    productTable.replaceChildren();
-
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 5;
-    cell.textContent =
-      "Impossible de charger les produits. Vérifie la connexion à Appwrite.";
-
-    row.appendChild(cell);
-    productTable.appendChild(row);
+    showMessage(
+      adminProductsMessage,
+      "Suppression impossible : " + error.message,
+      "error"
+    );
+    console.error(error);
   }
 }
+
+// Démarrage de l'administration.
+resetProductForm();
+checkSession();
