@@ -1,167 +1,262 @@
-import { Client, TablesDB, Functions } from "https://cdn.jsdelivr.net/npm/appwrite@20.0.0/+esm";
+/* ==========================================
+   AMSRON HOUSE — BOUTIQUE EN LIGNE
+   Appwrite + Produits + Panier + WhatsApp
+========================================== */
 
-const client = new Client()
-  .setEndpoint("https://fra.cloud.appwrite.io/v1")
-  .setProject("6ac8d53b00374f7bdd20");
+const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
+const APPWRITE_PROJECT_ID = "6ac8d53b00374f7bdd20";
+const APPWRITE_DATABASE_ID = "amsron-database";
+const APPWRITE_PRODUCTS_TABLE_ID = "products";
 
-const tablesDB = new TablesDB(client);
-const functions = new Functions(client);
-
-const DATABASE_ID = "amsron-database";
-const PRODUCTS_TABLE_ID = "products";
+/* Numéro WhatsApp au format international, sans + ni espaces */
 const WHATSAPP_NUMBER = "22892181666";
 
-// Année du pied de page
-const year = document.getElementById("year");
+/* Sélecteurs HTML */
+const productGrid = document.getElementById("productGrid");
+const productMessage = document.getElementById("productMessage");
 
-if (year) {
-  year.textContent = new Date().getFullYear();
-}
+const cartItems = document.getElementById("cartItems");
+const cartTotal = document.getElementById("cartTotal");
+const cartCount = document.getElementById("cartCount");
 
-// Menu de navigation mobile
-const navigation = document.getElementById("navigation");
+const checkoutButton = document.getElementById("checkoutButton");
+const checkoutSection = document.getElementById("checkoutSection");
+const checkoutForm = document.getElementById("checkoutForm");
+const checkoutMessage = document.getElementById("checkoutMessage");
+const checkoutTotal = document.getElementById("checkoutTotal");
+
+const deliveryMethod = document.getElementById("deliveryMethod");
+const addressGroup = document.getElementById("addressGroup");
+const deliveryAddress = document.getElementById("deliveryAddress");
+
+const submitOrderButton = document.getElementById("submitOrderButton");
+const whatsappOrderButton = document.getElementById("whatsappOrderButton");
+
 const menuToggle = document.getElementById("menuToggle");
+const navMenu = document.getElementById("navMenu");
+const currentYear = document.getElementById("currentYear");
 
-if (menuToggle && navigation) {
-  menuToggle.addEventListener("click", () => {
-    const isOpen = navigation.classList.toggle("open");
-
-    menuToggle.setAttribute("aria-expanded", String(isOpen));
-    menuToggle.setAttribute(
-      "aria-label",
-      isOpen ? "Fermer le menu" : "Ouvrir le menu"
-    );
-  });
-
-  navigation.querySelectorAll("a").forEach((link) => {
-    link.addEventListener("click", () => {
-      navigation.classList.remove("open");
-      menuToggle.setAttribute("aria-expanded", "false");
-      menuToggle.setAttribute("aria-label", "Ouvrir le menu");
-    });
-  });
-}
-
-// Vérification du statut de publication
-function isProductAvailable(product) {
-  return product.is_available === true ||
-    product.is_available === 1 ||
-    product.is_available === "true";
-}
-
-// Création d'un élément de texte sécurisé
-function createTextElement(tag, className, value) {
-  const element = document.createElement(tag);
-  element.className = className;
-  element.textContent = value;
-  return element;
-}
-
-/* ===== PANIER AMSRON HOUSE ===== */
-
+/* État de la boutique */
+let products = [];
 let cart = [];
 
-function renderCart() {
-  const cartItems = document.getElementById("cartItems");
-  const cartTotal = document.getElementById("cartTotal");
-  const checkoutButton = document.getElementById("checkoutButton");
+/* ==========================================
+   OUTILS
+========================================== */
 
-  if (!cartItems || !cartTotal) return;
+function formatPrice(value) {
+  const number = Number(value);
 
-  cartItems.replaceChildren();
-
-  if (cart.length === 0) {
-    const empty = document.createElement("p");
-    empty.textContent = "Votre panier est vide.";
-    cartItems.appendChild(empty);
+  if (!Number.isFinite(number)) {
+    return "Prix à confirmer";
   }
 
-  let total = 0;
+  return new Intl.NumberFormat("fr-FR", {
+    maximumFractionDigits: 0
+  }).format(number) + " FCFA";
+}
 
-  cart.forEach((item) => {
-    total += item.price * item.quantity;
+function showMessage(element, message, type = "") {
+  if (!element) return;
 
-    const row = document.createElement("div");
-    row.className = "cart-item";
+  element.textContent = message;
+  element.className = "message";
 
-    const info = document.createElement("div");
-    info.className = "cart-item-info";
-
-    const name = document.createElement("strong");
-    name.textContent = item.name;
-
-    const price = document.createElement("p");
-    price.textContent =
-      `${item.price.toLocaleString("fr-FR")} FCFA l'unité`;
-
-    info.append(name, price);
-
-    const controls = document.createElement("div");
-
-    const minus = document.createElement("button");
-    minus.type = "button";
-    minus.textContent = "−";
-    minus.setAttribute("aria-label", `Retirer une unité de ${item.name}`);
-    minus.addEventListener("click", () => {
-      changeQuantity(item.id, -1);
-    });
-
-    const quantity = document.createElement("span");
-    quantity.className = "cart-quantity";
-    quantity.textContent = item.quantity;
-
-    const plus = document.createElement("button");
-    plus.type = "button";
-    plus.textContent = "+";
-    plus.setAttribute("aria-label", `Ajouter une unité de ${item.name}`);
-    plus.addEventListener("click", () => {
-      changeQuantity(item.id, 1);
-    });
-
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.textContent = "Supprimer";
-    remove.addEventListener("click", () => {
-      cart = cart.filter((product) => product.id !== item.id);
-      renderCart();
-    });
-
-    controls.append(minus, quantity, plus, remove);
-    row.append(info, controls);
-    cartItems.appendChild(row);
-  });
-
-  cartTotal.textContent = `${total.toLocaleString("fr-FR")} FCFA`;
-
-  if (checkoutButton) {
-    checkoutButton.disabled = cart.length === 0;
+  if (type) {
+    element.classList.add(type);
   }
 }
 
-function addToCart(product) {
-  const id = product.$id;
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
+}
 
-  if (!id) {
-    alert("Impossible d'identifier ce produit.");
+function getProductName(product) {
+  return product.Nom || product.nom || product.name || "Produit";
+}
+
+function getProductPrice(product) {
+  return product.Prix ?? product.prix ?? product.price ?? 0;
+}
+
+function getProductImage(product) {
+  return product.image_url || product.imageUrl || product.image || "";
+}
+
+function getProductDescription(product) {
+  return product.description || product.Description || "";
+}
+
+function isProductAvailable(product) {
+  const value = product.is_available;
+
+  return value === true ||
+    value === "true" ||
+    value === "Vrai" ||
+    value === "vrai" ||
+    value === 1 ||
+    value === "1";
+}
+
+/* ==========================================
+   CHARGEMENT APPWRITE
+========================================== */
+
+async function loadProducts() {
+  if (!productGrid) return;
+
+  showMessage(productMessage, "Chargement des produits...");
+
+  try {
+    /*
+      Requête REST Appwrite.
+      La table products est l'identifiant de table configuré.
+    */
+    const url =
+      `${APPWRITE_ENDPOINT}/databases/` +
+      `${encodeURIComponent(APPWRITE_DATABASE_ID)}/tables/` +
+      `${encodeURIComponent(APPWRITE_PRODUCTS_TABLE_ID)}/rows`;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-Appwrite-Project": APPWRITE_PROJECT_ID,
+        "Content-Type": "application/json"
+      }
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(
+        `Appwrite (${response.status}) : ${details}`
+      );
+    }
+
+    const result = await response.json();
+
+    products = Array.isArray(result.rows)
+      ? result.rows
+      : Array.isArray(result.documents)
+        ? result.documents
+        : [];
+
+    renderProducts();
+  } catch (error) {
+    console.error("Erreur de chargement des produits :", error);
+
+    showMessage(
+      productMessage,
+      "Impossible de charger les produits. Vérifiez la configuration Appwrite, les permissions de lecture et la connexion.",
+      "error"
+    );
+  }
+}
+
+/* ==========================================
+   AFFICHAGE DES PRODUITS
+========================================== */
+
+function renderProducts() {
+  if (!productGrid) return;
+
+  const availableProducts = products.filter(isProductAvailable);
+
+  if (availableProducts.length === 0) {
+    productGrid.innerHTML = "";
+    showMessage(
+      productMessage,
+      "Aucun produit disponible pour le moment."
+    );
     return;
   }
 
-  const price = Number(product.price);
+  showMessage(productMessage, "");
+
+  productGrid.innerHTML = availableProducts.map(product => {
+    const id = product.$id || product.id;
+    const name = getProductName(product);
+    const price = getProductPrice(product);
+    const image = getProductImage(product);
+    const description = getProductDescription(product);
+
+    const imageHTML = image
+      ? `<img
+           class="product-image"
+           src="${escapeHTML(image)}"
+           alt="${escapeHTML(name)}"
+           loading="lazy"
+           onerror="this.style.display='none'"
+         >`
+      : `<div class="product-image" role="img"
+           aria-label="Image non disponible"></div>`;
+
+    return `
+      <article class="product-card">
+        ${imageHTML}
+
+        <div class="product-info">
+          <h3 class="product-name">${escapeHTML(name)}</h3>
+
+          ${
+            description
+              ? `<p class="product-description">${escapeHTML(description)}</p>`
+              : ""
+          }
+
+          <p class="product-price">${formatPrice(price)}</p>
+
+          <button
+            type="button"
+            class="btn add-to-cart"
+            data-product-id="${escapeHTML(id)}"
+          >
+            Ajouter au panier
+          </button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+/* ==========================================
+   PANIER
+========================================== */
+
+function addToCart(productId) {
+  const product = products.find(item =>
+    String(item.$id || item.id) === String(productId)
+  );
+
+  if (!product || !isProductAvailable(product)) {
+    alert("Ce produit n'est pas disponible.");
+    return;
+  }
+
+  const price = Number(getProductPrice(product));
 
   if (!Number.isFinite(price) || price < 0) {
-    alert("Le prix de ce produit est invalide.");
+    alert("Le prix de ce produit doit être vérifié.");
     return;
   }
 
-  const existing = cart.find((item) => item.id === id);
+  const existingItem = cart.find(item =>
+    String(item.id) === String(productId)
+  );
 
-  if (existing) {
-    existing.quantity += 1;
+  if (existingItem) {
+    existingItem.quantity += 1;
   } else {
     cart.push({
-      id,
-      name: product.name || "Produit AMSRON HOUSE",
+      id: productId,
+      name: getProductName(product),
       price,
+      image: getProductImage(product),
       quantity: 1
     });
   }
@@ -169,357 +264,274 @@ function addToCart(product) {
   renderCart();
 }
 
-function changeQuantity(id, amount) {
-  const item = cart.find((product) => product.id === id);
+function changeQuantity(productId, amount) {
+  const item = cart.find(item =>
+    String(item.id) === String(productId)
+  );
 
   if (!item) return;
 
   item.quantity += amount;
 
   if (item.quantity <= 0) {
-    cart = cart.filter((product) => product.id !== id);
+    cart = cart.filter(entry =>
+      String(entry.id) !== String(productId)
+    );
   }
 
   renderCart();
 }
 
-renderCart();
-// Affichage des produits
-async function loadStoreProducts() {
-  const productGrid = document.getElementById("productGrid");
-
-  if (!productGrid) return;
-
-  productGrid.replaceChildren(
-    createTextElement(
-      "p",
-      "loading-message",
-      "Chargement des produits..."
-    )
+function removeFromCart(productId) {
+  cart = cart.filter(item =>
+    String(item.id) !== String(productId)
   );
 
-  try {
-    const response = await tablesDB.listRows({
-      databaseId: DATABASE_ID,
-      tableId: PRODUCTS_TABLE_ID,
-      queries: []
-    });
+  renderCart();
+}
 
-    const products = (response.rows || []).filter(
-      isProductAvailable
-    );
+function getCartTotal() {
+  return cart.reduce(
+    (total, item) => total + item.price * item.quantity,
+    0
+  );
+}
 
-    productGrid.replaceChildren();
+function getCartCount() {
+  return cart.reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
+}
 
-    if (products.length === 0) {
-      productGrid.appendChild(
-        createTextElement(
-          "p",
-          "empty-message",
-          "Aucun produit publié pour le moment. Revenez bientôt !"
-        )
-      );
-      return;
+function renderCart() {
+  if (cartItems) {
+    if (cart.length === 0) {
+      cartItems.innerHTML = "<p>Votre panier est vide.</p>";
+    } else {
+      cartItems.innerHTML = cart.map(item => `
+        <div class="cart-item">
+          <div class="cart-item-info">
+            <p class="cart-item-name">${escapeHTML(item.name)}</p>
+            <p class="cart-item-price">${formatPrice(item.price * item.quantity)}</p>
+          </div>
+
+          <div class="cart-item-actions">
+            <button
+              type="button"
+              class="quantity-button"
+              data-action="decrease"
+              data-product-id="${escapeHTML(item.id)}"
+              aria-label="Diminuer la quantité"
+            >−</button>
+
+            <span>${item.quantity}</span>
+
+            <button
+              type="button"
+              class="quantity-button"
+              data-action="increase"
+              data-product-id="${escapeHTML(item.id)}"
+              aria-label="Augmenter la quantité"
+            >+</button>
+
+            <button
+              type="button"
+              class="remove-button"
+              data-action="remove"
+              data-product-id="${escapeHTML(item.id)}"
+            >Supprimer</button>
+          </div>
+        </div>
+      `).join("");
     }
+  }
 
-    products.forEach((product) => {
-      const card = document.createElement("article");
-      card.className = "product-card";
+  const total = getCartTotal();
 
-      const imageWrap = document.createElement("div");
-      imageWrap.className = "product-image-wrap";
+  if (cartTotal) {
+    cartTotal.textContent = new Intl.NumberFormat("fr-FR", {
+      maximumFractionDigits: 0
+    }).format(total);
+  }
 
-      if (product.image_url) {
-        const image = document.createElement("img");
-        image.className = "product-image";
-        image.src = product.image_url;
-        image.alt = product.name || "Produit AMSRON HOUSE";
-        image.loading = "lazy";
+  if (checkoutTotal) {
+    checkoutTotal.textContent = new Intl.NumberFormat("fr-FR", {
+      maximumFractionDigits: 0
+    }).format(total);
+  }
 
-        image.addEventListener("error", () => {
-          image.hidden = true;
+  if (cartCount) {
+    cartCount.textContent = String(getCartCount());
+  }
 
-          const fallback = createTextElement(
-            "p",
-            "product-image-placeholder",
-            "Photo indisponible"
-          );
-
-          imageWrap.appendChild(fallback);
-        }, { once: true });
-
-        imageWrap.appendChild(image);
-      } else {
-        imageWrap.appendChild(
-          createTextElement(
-            "p",
-            "product-image-placeholder",
-            "Photo bientôt disponible"
-          )
-        );
-      }
-
-      const info = document.createElement("div");
-      info.className = "product-info";
-
-      info.appendChild(
-        createTextElement(
-          "p",
-          "product-category",
-          product.category || "Boutique"
-        )
-      );
-
-      info.appendChild(
-        createTextElement(
-          "h3",
-          "product-name",
-          product.name || "Produit AMSRON HOUSE"
-        )
-      );
-
-      info.appendChild(
-        createTextElement(
-          "p",
-          "product-description",
-          product.description || "Découvrez cet article."
-        )
-      );
-
-      const price = Number(product.price);
-
-      info.appendChild(
-        createTextElement(
-          "p",
-          "product-price",
-          Number.isFinite(price)
-            ? `${price.toLocaleString("fr-FR")} FCFA`
-            : "Prix à confirmer"
-        )
-      );
-
-      const addButton = document.createElement("button");
-addButton.type = "button";
-addButton.className = "add-to-cart";
-addButton.textContent = "Ajouter au panier";
-
-addButton.addEventListener("click", () => {
-  addToCart(product);
-});
-
-info.appendChild(addButton);
-      card.append(imageWrap, info);
-      productGrid.appendChild(card);
-    });
-
-    console.log(
-      `${products.length} produit(s) publié(s) affiché(s).`
-    );
-
-  } catch (error) {
-    console.error(
-      "Erreur lors du chargement des produits Appwrite :",
-      error
-    );
-
-    productGrid.replaceChildren(
-      createTextElement(
-        "p",
-        "error-message",
-        "Les produits ne peuvent pas être chargés. Vérifiez la connexion et les autorisations de lecture Appwrite."
-      )
-    );
+  if (checkoutButton) {
+    checkoutButton.disabled = cart.length === 0;
   }
 }
 
-loadStoreProducts();
+/* ==========================================
+   FORMULAIRE DE COMMANDE
+========================================== */
 
-/* ===== FORMULAIRE DE COMMANDE ===== */
-
-const checkoutButton = document.getElementById("checkoutButton");
-const checkoutSection = document.getElementById("checkoutSection");
-const checkoutForm = document.getElementById("checkoutForm");
-const deliveryMethod = document.getElementById("deliveryMethod");
-const addressGroup = document.getElementById("addressGroup");
-const deliveryAddress = document.getElementById("deliveryAddress");
-const checkoutMessage = document.getElementById("checkoutMessage");
-const checkoutTotal = document.getElementById("checkoutTotal");
-
-function updateCheckoutTotal() {
-  if (!checkoutTotal) return;
-
-  const total = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
-
-  checkoutTotal.textContent =
-    `${total.toLocaleString("fr-FR")} FCFA`;
-}
-
-// Ouvrir le formulaire
-if (checkoutButton && checkoutSection) {
-  checkoutButton.addEventListener("click", () => {
-    if (cart.length === 0) {
-      alert("Ajoutez au moins un produit à votre panier.");
-      return;
-    }
-
-    updateCheckoutTotal();
-    checkoutSection.hidden = false;
-    checkoutSection.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
-  });
-}
-
-// Afficher l'adresse seulement pour la livraison
 function updateDeliveryFields() {
   if (!deliveryMethod || !addressGroup || !deliveryAddress) return;
 
-  const isDelivery = deliveryMethod.value === "delivery";
+  const needsAddress = deliveryMethod.value === "delivery";
 
-  addressGroup.hidden = !isDelivery;
-  deliveryAddress.required = isDelivery;
+  addressGroup.hidden = !needsAddress;
+  deliveryAddress.required = needsAddress;
+}
 
-  if (!isDelivery) {
-    deliveryAddress.value = "";
+function buildOrderMessage() {
+  const formData = new FormData(checkoutForm);
+
+  const name = String(formData.get("customerName") || "").trim();
+  const phone = String(formData.get("customerPhone") || "").trim();
+  const method = String(formData.get("deliveryMethod") || "");
+  const address = String(formData.get("deliveryAddress") || "").trim();
+  const payment = String(formData.get("paymentMethod") || "");
+  const notes = String(formData.get("orderNotes") || "").trim();
+
+  const deliveryText = method === "delivery"
+    ? `Livraison à : ${address}`
+    : "Retrait sur place";
+
+  const paymentLabels = {
+    cash: "Paiement à la réception",
+    mobile_money: "Mobile Money",
+    other: "Autre, à convenir"
+  };
+
+  const lines = [
+    "Bonjour AMSRON HOUSE !",
+    "",
+    "Je souhaite passer cette commande :",
+    "",
+    ...cart.map(item =>
+      `- ${item.name} × ${item.quantity} = ${formatPrice(item.price * item.quantity)}`
+    ),
+    "",
+    `TOTAL : ${formatPrice(getCartTotal())}`,
+    "",
+    `Nom : ${name}`,
+    `Téléphone : ${phone}`,
+    deliveryText,
+    `Paiement souhaité : ${paymentLabels[payment] || payment}`,
+    notes ? `Informations complémentaires : ${notes}` : ""
+  ];
+
+  return lines.filter(Boolean).join("\n");
+}
+
+function sendOrderToWhatsApp() {
+  if (cart.length === 0) {
+    showMessage(checkoutMessage, "Ajoutez d'abord un produit au panier.", "error");
+    return;
   }
+
+  if (!checkoutForm || !checkoutForm.reportValidity()) {
+    return;
+  }
+
+  const message = buildOrderMessage();
+  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/* ==========================================
+   ÉVÉNEMENTS
+========================================== */
+
+if (productGrid) {
+  productGrid.addEventListener("click", event => {
+    const button = event.target.closest(".add-to-cart");
+
+    if (!button) return;
+
+    addToCart(button.dataset.productId);
+  });
+}
+
+if (cartItems) {
+  cartItems.addEventListener("click", event => {
+    const button = event.target.closest("button[data-action]");
+
+    if (!button) return;
+
+    const id = button.dataset.productId;
+    const action = button.dataset.action;
+
+    if (action === "increase") {
+      changeQuantity(id, 1);
+    } else if (action === "decrease") {
+      changeQuantity(id, -1);
+    } else if (action === "remove") {
+      removeFromCart(id);
+    }
+  });
+}
+
+if (checkoutButton) {
+  checkoutButton.addEventListener("click", () => {
+    if (cart.length === 0) {
+      alert("Votre panier est vide.");
+      return;
+    }
+
+    if (checkoutSection) {
+      checkoutSection.hidden = false;
+      checkoutSection.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+  });
 }
 
 if (deliveryMethod) {
   deliveryMethod.addEventListener("change", updateDeliveryFields);
-  updateDeliveryFields();
 }
-
-// Préparer le formulaire sans prétendre enregistrer la commande
-if (checkoutForm) {
-  checkoutForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    if (cart.length === 0) {
-      checkoutMessage.textContent =
-        "Votre panier est vide. Ajoutez des produits avant de continuer.";
-      return;
-    }
-
-    if (!checkoutForm.reportValidity()) return;
-
-    const submitButton = document.getElementById("submitOrderButton");
-    const originalText = submitButton
-      ? submitButton.textContent
-      : "Confirmer ma commande";
-
-    try {
-      if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.textContent = "Enregistrement...";
-      }
-
-      checkoutMessage.textContent = "Envoi de votre commande...";
-
-      const payload = {
-        customer_name: document.getElementById("customerName").value.trim(),
-        customer_phone: document.getElementById("customerPhone").value.trim(),
-        delivery_method: deliveryMethod.value,
-        delivery_address: deliveryAddress.value.trim(),
-        payment_method: document.getElementById("paymentMethod").value,
-        notes: document.getElementById("orderNotes").value.trim(),
-        items: cart.map((item) => ({
-          product_id: item.$id || item.id || item.product_id,
-          quantity: item.quantity
-        }))
-      };
-
-      const execution = await functions.createExecution({
-        functionId: "6acb8e08001c92f82401",
-        body: JSON.stringify(payload),
-        async: false,
-        path: "/",
-        method: "POST"
-      });
-
-      let result;
-
-      try {
-        result = JSON.parse(execution.responseBody || "{}");
-      } catch {
-        throw new Error("Réponse invalide du serveur.");
-      }
-
-      if (
-        execution.statusCode < 200 ||
-        execution.statusCode >= 300 ||
-        !result.success
-      ) {
-        throw new Error(
-          result.message || "Impossible d'enregistrer la commande."
-        );
-      }
-
-      checkoutMessage.textContent =
-        "Commande enregistrée avec succès ! Numéro : " +
-        result.order_id +
-        " — Total : " +
-        Number(result.total_amount).toLocaleString("fr-FR") +
-        " FCFA.";
-
-      cart = [];
-      renderCart();
-      checkoutForm.reset();
-      updateDeliveryFields();
-      updateCheckoutTotal();
-
-    } catch (error) {
-      console.error("Erreur de commande :", error);
-      checkoutMessage.textContent =
-        error.message || "Une erreur est survenue. Réessayez.";
-    } finally {
-      if (submitButton) {
-        submitButton.disabled = false;
-        submitButton.textContent = originalText;
-      }
-    }
-  });
-}
-
-updateCheckoutTotal();
-console.log("AMSRON HOUSE : formulaire de commande initialisé.");
-
-console.log("AMSRON HOUSE : boutique initialisée.");
-/* ===== COMMANDE DIRECTE WHATSAPP ===== */
-
-const whatsappOrderButton = document.getElementById("whatsappOrderButton");
 
 if (whatsappOrderButton) {
-  whatsappOrderButton.addEventListener("click", () => {
-    if (cart.length === 0) {
-      alert("Votre panier est vide. Ajoutez des produits avant de commander.");
-      return;
-    }
+  whatsappOrderButton.addEventListener("click", sendOrderToWhatsApp);
+}
 
-    const total = cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-
-    let message = "Bonjour AMSRON HOUSE ! Je souhaite commander :\n\n";
-
-    cart.forEach((item) => {
-      const subtotal = item.price * item.quantity;
-
-      message += `- ${item.name}\n`;
-      message += `  Quantité : ${item.quantity}\n`;
-      message += `  Prix : ${subtotal.toLocaleString("fr-FR")} FCFA\n\n`;
-    });
-
-    message += `TOTAL : ${total.toLocaleString("fr-FR")} FCFA\n\n`;
-    message += "Merci de me confirmer la disponibilité et les modalités de livraison.";
-
-    const whatsappURL =
-      "https://wa.me/22892181666?text=" + encodeURIComponent(message);
-
-    window.open(whatsappURL, "_blank", "noopener,noreferrer");
+if (checkoutForm) {
+  checkoutForm.addEventListener("submit", event => {
+    event.preventDefault();
+    sendOrderToWhatsApp();
   });
 }
+
+if (menuToggle && navMenu) {
+  menuToggle.addEventListener("click", () => {
+    const isOpen = navMenu.classList.toggle("open");
+    menuToggle.setAttribute("aria-expanded", String(isOpen));
+    menuToggle.setAttribute(
+      "aria-label",
+      isOpen ? "Fermer le menu" : "Ouvrir le menu"
+    );
+  });
+
+  navMenu.addEventListener("click", event => {
+    if (event.target.closest("a")) {
+      navMenu.classList.remove("open");
+      menuToggle.setAttribute("aria-expanded", "false");
+      menuToggle.setAttribute("aria-label", "Ouvrir le menu");
+    }
+  });
+}
+
+/* ==========================================
+   INITIALISATION
+========================================== */
+
+if (currentYear) {
+  currentYear.textContent = String(new Date().getFullYear());
+}
+
+updateDeliveryFields();
+renderCart();
+loadProducts();
