@@ -1,12 +1,16 @@
-// ============================================
-// AMSRON HOUSE — ADMINISTRATION
-// Connexion, produits, modification et suppression
-// ============================================
+/* ============================================
+   AMSRON HOUSE — ADMINISTRATION
+   Connexion, produits, photos, modification
+   et suppression avec Appwrite
+============================================ */
 
 const APPWRITE_ENDPOINT = "https://fra.cloud.appwrite.io/v1";
 const APPWRITE_PROJECT_ID = "6ac8d53b00374f7bdd20";
 const DATABASE_ID = "amsron-database";
 const TABLE_ID = "products";
+const BUCKET_ID = "6ac916bc000bcac7f703";
+
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
 // Éléments de la page
 const loginSection = document.getElementById("loginSection");
@@ -33,21 +37,29 @@ const productFormMessage = document.getElementById("productFormMessage");
 const saveProductButton = document.getElementById("saveProductButton");
 const cancelEditButton = document.getElementById("cancelEditButton");
 
-const refreshProductsButton = document.getElementById(
-  "refreshProductsButton"
-);
-const adminProductsMessage = document.getElementById(
-  "adminProductsMessage"
-);
+const refreshProductsButton =
+  document.getElementById("refreshProductsButton");
+const adminProductsMessage =
+  document.getElementById("adminProductsMessage");
 const adminProductList = document.getElementById("adminProductList");
 
+const previewContainer =
+  document.getElementById("productImagePreviewContainer");
+const previewImage = document.getElementById("productImagePreview");
 const adminYear = document.getElementById("adminYear");
+
+// URL de la photo déjà associée au produit en cours de modification.
+let currentImageUrl = "";
+let previewObjectUrl = null;
 
 if (adminYear) {
   adminYear.textContent = new Date().getFullYear();
 }
 
-// Toutes les requêtes passent par cette fonction.
+// ============================================
+// REQUÊTES JSON VERS APPWRITE
+// ============================================
+
 async function appwriteRequest(path, options = {}) {
   const response = await fetch(`${APPWRITE_ENDPOINT}${path}`, {
     credentials: "include",
@@ -70,7 +82,82 @@ async function appwriteRequest(path, options = {}) {
   return data;
 }
 
-// Affichage sécurisé des messages.
+// ============================================
+// ENVOI D'UNE PHOTO DANS APPWRITE STORAGE
+// ============================================
+
+async function uploadProductImage(file) {
+  if (!file) return "";
+
+  const allowedTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif"
+  ];
+
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error(
+      "Format refusé. Choisissez une image JPG, PNG, WebP ou GIF."
+    );
+  }
+
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error(
+      "La photo dépasse 5 Mo. Réduisez sa taille puis réessayez."
+    );
+  }
+
+  if (file.size === 0) {
+    throw new Error("Le fichier sélectionné est vide.");
+  }
+
+  const formData = new FormData();
+  formData.append("fileId", "unique()");
+  formData.append("file", file);
+  formData.append("permissions[]", 'read("any")');
+
+  // Important : ne pas définir Content-Type ici.
+  // Le navigateur doit créer lui-même la frontière multipart.
+  const response = await fetch(
+    `${APPWRITE_ENDPOINT}/storage/buckets/${encodeURIComponent(
+      BUCKET_ID
+    )}/files`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "X-Appwrite-Project": APPWRITE_PROJECT_ID
+      },
+      body: formData
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ||
+      `Échec de l'envoi de la photo (${response.status}). Vérifiez les permissions du stockage.`
+    );
+  }
+
+  if (!data.$id) {
+    throw new Error("Appwrite n'a pas retourné l'identifiant de la photo.");
+  }
+
+  return (
+    `${APPWRITE_ENDPOINT}/storage/buckets/` +
+    `${encodeURIComponent(BUCKET_ID)}/files/` +
+    `${encodeURIComponent(data.$id)}/view` +
+    `?project=${encodeURIComponent(APPWRITE_PROJECT_ID)}`
+  );
+}
+
+// ============================================
+// MESSAGES
+// ============================================
+
 function showMessage(element, message, type = "info") {
   if (!element) return;
 
@@ -78,7 +165,6 @@ function showMessage(element, message, type = "info") {
   element.dataset.type = type;
 }
 
-// Convertit les valeurs d'Appwrite en disponibilité.
 function isAvailable(value) {
   return (
     value === true ||
@@ -89,7 +175,10 @@ function isAvailable(value) {
   );
 }
 
-// Récupère les produits dans Appwrite.
+// ============================================
+// PRODUITS APPWRITE
+// ============================================
+
 async function getProducts() {
   const result = await appwriteRequest(
     `/tablesdb/${DATABASE_ID}/tables/${TABLE_ID}/rows?limit=100`
@@ -98,7 +187,6 @@ async function getProducts() {
   return result.rows || [];
 }
 
-// Vérifie si l'utilisateur possède une session.
 async function checkSession() {
   try {
     await appwriteRequest("/account");
@@ -119,7 +207,10 @@ function showDashboard() {
   if (dashboardSection) dashboardSection.hidden = false;
 }
 
-// Connexion administrateur.
+// ============================================
+// CONNEXION
+// ============================================
+
 if (adminLoginForm) {
   adminLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -143,16 +234,12 @@ if (adminLoginForm) {
     try {
       await appwriteRequest("/account/sessions/email", {
         method: "POST",
-        body: JSON.stringify({
-          email,
-          password
-        })
+        body: JSON.stringify({ email, password })
       });
 
       adminPassword.value = "";
       showDashboard();
       await loadProducts();
-
       showMessage(loginMessage, "");
     } catch (error) {
       showMessage(
@@ -167,7 +254,10 @@ if (adminLoginForm) {
   });
 }
 
-// Déconnexion.
+// ============================================
+// DÉCONNEXION
+// ============================================
+
 if (logoutButton) {
   logoutButton.addEventListener("click", async () => {
     try {
@@ -182,7 +272,10 @@ if (logoutButton) {
   });
 }
 
-// Affiche les statistiques.
+// ============================================
+// STATISTIQUES
+// ============================================
+
 function updateStatistics(products) {
   if (productCount) {
     productCount.textContent = products.length;
@@ -195,7 +288,10 @@ function updateStatistics(products) {
   }
 }
 
-// Crée un élément HTML avec du texte sécurisé.
+// ============================================
+// AFFICHAGE DE LA LISTE
+// ============================================
+
 function createTextElement(tag, className, text) {
   const element = document.createElement(tag);
   element.className = className;
@@ -203,63 +299,71 @@ function createTextElement(tag, className, text) {
   return element;
 }
 
-// Affiche la liste des produits.
 function renderProducts(products) {
+  if (!adminProductList) return;
+
   adminProductList.replaceChildren();
   updateStatistics(products);
 
   if (products.length === 0) {
-    showMessage(
-      adminProductsMessage,
-      "Aucun produit trouvé dans Appwrite.",
-      "info"
-    );
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+
+    cell.colSpan = 4;
+    cell.textContent = "Aucun produit enregistré.";
+
+    row.appendChild(cell);
+    adminProductList.appendChild(row);
+
+    showMessage(adminProductsMessage, "Aucun produit trouvé.");
     return;
   }
 
   showMessage(adminProductsMessage, "");
 
   products.forEach((product) => {
-    const card = document.createElement("article");
-    card.className = "admin-product-card";
+    const row = document.createElement("tr");
+    const productCell = document.createElement("td");
+    const priceCell = document.createElement("td");
+    const statusCell = document.createElement("td");
+    const actionsCell = document.createElement("td");
 
     const name = product.Nom || "Produit sans nom";
     const price = Number(product.Prix || 0);
     const available = isAvailable(product.is_available);
 
-    const title = createTextElement(
-      "h3",
-      "admin-product-name",
-      name
+    if (product.image_url) {
+      const image = document.createElement("img");
+      image.src = product.image_url;
+      image.alt = name;
+      image.loading = "lazy";
+      image.style.width = "65px";
+      image.style.height = "65px";
+      image.style.objectFit = "cover";
+      image.style.borderRadius = "6px";
+      image.style.display = "block";
+      image.style.marginBottom = "6px";
+
+      image.addEventListener("error", () => {
+        image.hidden = true;
+      });
+
+      productCell.appendChild(image);
+    }
+
+    productCell.appendChild(
+      createTextElement("strong", "admin-product-name", name)
     );
 
-    const priceElement = createTextElement(
-      "p",
-      "admin-product-price",
-      `${price.toLocaleString("fr-FR")} F CFA`
-    );
+    priceCell.textContent =
+      `${price.toLocaleString("fr-FR")} F CFA`;
 
-    const status = createTextElement(
-      "p",
-      "admin-product-status",
-      available ? "Disponible" : "Indisponible"
-    );
-
-    const description = createTextElement(
-      "p",
-      "admin-product-description",
-      product.description || product.Description || ""
-    );
-
-    const actions = document.createElement("div");
-    actions.className = "admin-product-actions";
+    statusCell.textContent = available ? "Disponible" : "Indisponible";
 
     const editButton = document.createElement("button");
     editButton.type = "button";
     editButton.textContent = "Modifier";
-    editButton.addEventListener("click", () => {
-      editProduct(product);
-    });
+    editButton.addEventListener("click", () => editProduct(product));
 
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
@@ -268,28 +372,16 @@ function renderProducts(products) {
       deleteProduct(product.$id || product.$sequence);
     });
 
-    actions.append(editButton, deleteButton);
-    card.append(title, priceElement, status, description, actions);
-
-    if (product.image_url) {
-      const image = document.createElement("img");
-      image.src = product.image_url;
-      image.alt = name;
-      image.loading = "lazy";
-      image.className = "admin-product-image";
-
-      image.addEventListener("error", () => {
-        image.hidden = true;
-      });
-
-      card.prepend(image);
-    }
-
-    adminProductList.appendChild(card);
+    actionsCell.append(editButton, deleteButton);
+    row.append(productCell, priceCell, statusCell, actionsCell);
+    adminProductList.appendChild(row);
   });
 }
 
-// Recharge les produits.
+// ============================================
+// CHARGEMENT DES PRODUITS
+// ============================================
+
 async function loadProducts() {
   showMessage(adminProductsMessage, "Chargement des produits...");
 
@@ -306,6 +398,7 @@ async function loadProducts() {
       "Impossible de charger les produits : " + error.message,
       "error"
     );
+
     console.error(error);
   } finally {
     if (refreshProductsButton) {
@@ -318,16 +411,79 @@ if (refreshProductsButton) {
   refreshProductsButton.addEventListener("click", loadProducts);
 }
 
-// Prépare la modification d'un produit.
+// ============================================
+// APERÇU DE LA PHOTO
+// ============================================
+
+function releasePreviewUrl() {
+  if (previewObjectUrl) {
+    URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = null;
+  }
+}
+
+function showImagePreview(url) {
+  if (!previewContainer || !previewImage) return;
+
+  releasePreviewUrl();
+
+  if (url) {
+    previewImage.src = url;
+    previewContainer.hidden = false;
+  } else {
+    previewImage.removeAttribute("src");
+    previewContainer.hidden = true;
+  }
+}
+
+if (productImage) {
+  productImage.addEventListener("change", () => {
+    const file = productImage.files && productImage.files[0];
+
+    if (!file) {
+      showImagePreview(currentImageUrl);
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      showMessage(
+        productFormMessage,
+        "Veuillez choisir un fichier image.",
+        "error"
+      );
+
+      productImage.value = "";
+      showImagePreview(currentImageUrl);
+      return;
+    }
+
+    releasePreviewUrl();
+    previewObjectUrl = URL.createObjectURL(file);
+    showImagePreview(previewObjectUrl);
+  });
+}
+
+// ============================================
+// MODIFICATION D'UN PRODUIT
+// ============================================
+
 function editProduct(product) {
   productId.value = product.$id || "";
-
   productName.value = product.Nom || "";
   productPrice.value = product.Prix ?? "";
-  productImage.value = product.image_url || "";
-  productDescription.value =
-    product.description || product.Description || "";
+
+  // Un champ fichier ne peut pas être rempli par une URL.
+  productImage.value = "";
+  currentImageUrl = product.image_url || "";
+
+  if (productDescription) {
+    productDescription.value =
+      product.description || product.Description || "";
+  }
+
   productAvailable.checked = isAvailable(product.is_available);
+
+  showImagePreview(currentImageUrl);
 
   productFormTitle.textContent = "Modifier le produit";
   saveProductButton.textContent = "Enregistrer les modifications";
@@ -341,14 +497,25 @@ function editProduct(product) {
   });
 }
 
-// Réinitialise le formulaire.
+// ============================================
+// RÉINITIALISATION DU FORMULAIRE
+// ============================================
+
 function resetProductForm() {
+  if (!productForm) return;
+
   productForm.reset();
   productId.value = "";
   productAvailable.checked = true;
+
+  currentImageUrl = "";
+  productImage.value = "";
+  showImagePreview("");
+
   productFormTitle.textContent = "Ajouter un produit";
   saveProductButton.textContent = "Enregistrer le produit";
   cancelEditButton.hidden = true;
+
   showMessage(productFormMessage, "");
 }
 
@@ -356,16 +523,18 @@ if (cancelEditButton) {
   cancelEditButton.addEventListener("click", resetProductForm);
 }
 
-// Ajout ou modification d'un produit.
+// ============================================
+// AJOUT ET MODIFICATION
+// ============================================
+
 if (productForm) {
   productForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const name = productName.value.trim();
     const price = Number(productPrice.value);
-    const imageUrl = productImage.value.trim();
-    const description = productDescription.value.trim();
-    const available = productAvailable.checked;
+    const selectedFile =
+      productImage.files && productImage.files[0];
 
     if (!name) {
       showMessage(
@@ -376,7 +545,11 @@ if (productForm) {
       return;
     }
 
-    if (!Number.isFinite(price) || price < 0) {
+    if (
+      productPrice.value.trim() === "" ||
+      !Number.isFinite(price) ||
+      price < 0
+    ) {
       showMessage(
         productFormMessage,
         "Entre un prix valide.",
@@ -385,18 +558,54 @@ if (productForm) {
       return;
     }
 
-    const payload = {
-      Nom: name,
-      Prix: price,
-      image_url: imageUrl,
-      description: description,
-      is_available: available ? "Vrai" : "Faux"
-    };
+    // Vérification préalable pour éviter un envoi inutile.
+    if (selectedFile) {
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif"
+      ];
+
+      if (!allowedTypes.includes(selectedFile.type)) {
+        showMessage(
+          productFormMessage,
+          "Choisissez une image JPG, PNG, WebP ou GIF.",
+          "error"
+        );
+        return;
+      }
+
+      if (selectedFile.size > MAX_IMAGE_SIZE) {
+        showMessage(
+          productFormMessage,
+          "La photo doit faire 5 Mo maximum.",
+          "error"
+        );
+        return;
+      }
+    }
 
     saveProductButton.disabled = true;
-    saveProductButton.textContent = "Enregistrement...";
+    saveProductButton.textContent = selectedFile
+      ? "Envoi de la photo..."
+      : "Enregistrement...";
 
     try {
+      let imageUrl = currentImageUrl;
+
+      // Envoyer la nouvelle photo seulement si elle a été sélectionnée.
+      if (selectedFile) {
+        imageUrl = await uploadProductImage(selectedFile);
+      }
+
+      const payload = {
+        Nom: name,
+        Prix: price,
+        image_url: imageUrl,
+        is_available: productAvailable.checked ? "Vrai" : "Faux"
+      };
+
       const id = productId.value.trim();
 
       if (id) {
@@ -440,6 +649,7 @@ if (productForm) {
         "Enregistrement impossible : " + error.message,
         "error"
       );
+
       console.error(error);
     } finally {
       saveProductButton.disabled = false;
@@ -450,7 +660,10 @@ if (productForm) {
   });
 }
 
-// Suppression d'un produit.
+// ============================================
+// SUPPRESSION
+// ============================================
+
 async function deleteProduct(id) {
   if (!id) {
     alert("Identifiant du produit introuvable.");
@@ -458,7 +671,7 @@ async function deleteProduct(id) {
   }
 
   const confirmed = confirm(
-    "Veux-tu vraiment supprimer ce produit ? Cette action est irréversible."
+    "Veux-tu vraiment supprimer ce produit ?"
   );
 
   if (!confirmed) return;
@@ -482,10 +695,14 @@ async function deleteProduct(id) {
       "Suppression impossible : " + error.message,
       "error"
     );
+
     console.error(error);
   }
 }
 
-// Démarrage de l'administration.
+// ============================================
+// DÉMARRAGE
+// ============================================
+
 resetProductForm();
 checkSession();
