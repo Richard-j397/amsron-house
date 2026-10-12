@@ -3,208 +3,260 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#123b8a">
-  <meta name="description" content="AMSRON HOUSE : découvrez nos produits et notre restaurant.">
+  <meta name="description" content="AMSRON HOUSE : découvrez notre boutique en ligne et notre restaurant.">
   <title>AMSRON HOUSE | Boutique & Restaurant</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+  <header class="site-header">
+    <div class="container header-content">
+      <a href="#accueil" class="logo">AMSRON HOUSE</a>
 
-  <header class="header">
-    <a class="logo" href="#accueil">
-      AMSRON <span>HOUSE</span>
-    </a>
+      <button
+        id="menuToggle"
+        class="menu-toggle"
+        type="button"
+        aria-label="Ouvrir le menu"
+        aria-expanded="false"
+      >☰</button>
 
-    <button class="menu-toggle" id="menuToggle"
-      aria-label="Ouvrir le menu" aria-expanded="false">
-      ☰
-    </button>
-
-    <nav id="navigation">
-      <a href="#accueil">Accueil</a>
-      <a href="#produits">Nos produits</a>
-      <a href="#delice">Restaurant</a>
-      <a href="#apropos">À propos</a>
-      <a href="#contact">Contact</a>
-    </nav>
+      <nav id="navMenu" class="navigation">
+        <a href="#accueil">Accueil</a>
+        <a href="#boutique">Boutique</a>
+        <a href="#restaurant">Restaurant</a>
+        <a href="#apropos">À propos</a>
+        <a href="#contact">Contact</a>
+        <a href="#panier">Panier (<span id="cartCount">0</span>)</a>
+      </nav>
+    </div>
   </header>
 
   <main>
-    <section class="hero" id="accueil">
-      <div class="hero-content">
-        <p class="eyebrow">VOTRE UNIVERS, VOTRE STYLE</p>
-        <h1>Bienvenue chez <span>AMSRON HOUSE</span></h1>
+    <!-- ACCUEIL -->
+    <section id="accueil" class="hero">
+      <div class="container hero-content">
+        <p class="hero-subtitle">L'élégance au quotidien</p>
+        <h1>AMSRON HOUSE</h1>
         <p>
-          Découvrez nos produits, profitez de nos offres et savourez
-          une expérience unique entre boutique et restauration.
+          Découvrez notre univers, explorez nos produits et profitez
+          d'une expérience d'achat simple et agréable.
         </p>
-        <div class="hero-buttons">
-          <a class="btn btn-blue" href="#produits">
-            Découvrir les produits
-          </a>
-          <a class="btn btn-outline" href="#delice">
-            Découvrir le restaurant
+        <a href="#boutique" class="btn">Découvrir la boutique</a>
+      </div>
+    </section>
+
+    <!-- BOUTIQUE -->
+    <section id="boutique" class="section">
+      <div class="container">
+        <h2>Notre boutique</h2>
+        <p class="section-description">
+          Découvrez notre sélection de produits.
+        </p>
+
+        <div id="productMessage" class="message" role="status">
+          Chargement des produits...
+        </div>
+
+        <div id="productGrid" class="product-grid"></div>
+      </div>
+    </section>
+
+    <!-- PANIER -->
+    <section id="panier" class="section section-light">
+      <div class="container">
+        <h2>Votre panier</h2>
+        <p class="section-description">
+          Retrouvez les articles que vous souhaitez commander.
+        </p>
+
+        <div id="cartItems" class="cart-items">
+          <p>Votre panier est vide.</p>
+        </div>
+
+        <div class="cart-summary">
+          <p>
+            Total :
+            <strong><span id="cartTotal">0</span> FCFA</strong>
+          </p>
+
+          <button id="checkoutButton" class="btn" type="button">
+            Passer la commande
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMMANDE -->
+    <section id="checkoutSection" class="section" hidden>
+      <div class="container">
+        <h2>Finaliser votre commande</h2>
+        <p class="section-description">
+          Remplissez vos coordonnées pour préparer votre commande.
+        </p>
+
+        <form id="checkoutForm">
+          <div class="form-group">
+            <label for="customerName">Nom complet</label>
+            <input
+              type="text"
+              id="customerName"
+              name="customerName"
+              autocomplete="name"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="customerPhone">Numéro de téléphone</label>
+            <input
+              type="tel"
+              id="customerPhone"
+              name="customerPhone"
+              autocomplete="tel"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="deliveryMethod">Mode de réception</label>
+            <select id="deliveryMethod" name="deliveryMethod" required>
+              <option value="">Choisir une option</option>
+              <option value="delivery">Livraison</option>
+              <option value="pickup">Retrait sur place</option>
+            </select>
+          </div>
+
+          <div id="addressGroup" class="form-group" hidden>
+            <label for="deliveryAddress">Adresse de livraison</label>
+            <textarea
+              id="deliveryAddress"
+              name="deliveryAddress"
+              placeholder="Indiquez votre quartier et votre adresse"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="paymentMethod">Mode de paiement souhaité</label>
+            <select id="paymentMethod" name="paymentMethod" required>
+              <option value="">Choisir un mode de paiement</option>
+              <option value="cash">Paiement à la réception</option>
+              <option value="mobile_money">Mobile Money</option>
+              <option value="other">Autre, à convenir</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="orderNotes">Informations complémentaires (facultatif)</label>
+            <textarea
+              id="orderNotes"
+              name="orderNotes"
+              placeholder="Précisions concernant votre commande..."
+            ></textarea>
+          </div>
+
+          <p class="order-total">
+            Total de la commande :
+            <strong><span id="checkoutTotal">0</span> FCFA</strong>
+          </p>
+
+          <div id="checkoutMessage" class="message" role="status"></div>
+
+          <button
+            id="submitOrderButton"
+            class="btn"
+            type="submit"
+          >
+            Confirmer ma commande
+          </button>
+
+          <button
+            id="whatsappOrderButton"
+            class="btn btn-secondary"
+            type="button"
+          >
+            Commander par WhatsApp
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- RESTAURANT -->
+    <section id="restaurant" class="section section-light">
+      <div class="container">
+        <h2>Notre restaurant</h2>
+        <p class="section-description">
+          Découvrez notre espace de restauration et contactez-nous
+          pour vos demandes.
+        </p>
+
+        <div class="info-panel">
+          <h3>Un moment de plaisir</h3>
+          <p>
+            AMSRON HOUSE vous accueille dans son univers.
+            Contactez notre équipe pour connaître les offres disponibles,
+            les menus et les possibilités de commande.
+          </p>
+
+          <a
+            href="https://wa.me/22892181666"
+            class="btn"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Nous contacter sur WhatsApp
           </a>
         </div>
       </div>
-      <div class="hero-decoration" aria-hidden="true">
-        <span>AH</span>
-      </div>
     </section>
 
-    <section class="section" id="produits">
-      <div class="section-heading">
-        <p class="eyebrow">LA SÉLECTION AMSRON</p>
-        <h2>Nos <span>produits</span></h2>
-        <p>Retrouvez ici les produits disponibles dans notre boutique.</p>
-      </div>
-
-      <section id="panier" class="cart-section">
-        <section id="checkoutSection" class="checkout-section" hidden>
-  <h2>Finaliser ma commande</h2>
-  <p>Veuillez renseigner vos informations pour confirmer votre commande.</p>
-
-  <form id="checkoutForm">
-    <label for="customerName">Nom complet *</label>
-    <input
-      type="text"
-      id="customerName"
-      name="customer_name"
-      required
-      maxlength="150"
-      autocomplete="name"
-      placeholder="Votre nom complet"
-    />
-
-    <label for="customerPhone">Téléphone *</label>
-    <input
-      type="tel"
-      id="customerPhone"
-      name="customer_phone"
-      required
-      maxlength="30"
-      autocomplete="tel"
-      placeholder="Ex. : 90 00 00 00"
-    />
-
-    <label for="deliveryMethod">Mode de réception *</label>
-    <select id="deliveryMethod" name="delivery_method" required>
-      <option value="">Choisir une option</option>
-      <option value="delivery">Livraison à domicile</option>
-      <option value="pickup">Retrait sur place</option>
-    </select>
-
-    <div id="addressGroup" hidden>
-      <label for="deliveryAddress">Adresse de livraison *</label>
-      <textarea
-        id="deliveryAddress"
-        name="delivery_address"
-        rows="3"
-        maxlength="1000"
-        placeholder="Quartier, rue et repère"
-      ></textarea>
-    </div>
-
-    <label for="paymentMethod">Mode de paiement *</label>
-    <select id="paymentMethod" name="payment_method" required>
-      <option value="">Choisir un mode de paiement</option>
-      <option value="cash_delivery">Paiement à la livraison</option>
-      <option value="tmoney">TMoney</option>
-      <option value="flooz">Flooz</option>
-    </select>
-
-    <label for="orderNotes">Instructions complémentaires</label>
-    <textarea
-      id="orderNotes"
-      name="notes"
-      rows="3"
-      maxlength="1000"
-      placeholder="Précisions facultatives"
-    ></textarea>
-
-    <p>
-      Total de la commande :
-      <strong id="checkoutTotal">0 FCFA</strong>
-    </p>
-
-    <button type="submit" id="submitOrderButton">
-      Confirmer ma commande
-    </button>
-
-    <p id="checkoutMessage" role="status" aria-live="polite"></p>
-  </form>
-</section>
-  <h2>Mon panier</h2>
-
-  <div id="cartItems">
-    <p>Votre panier est vide.</p>
-  </div>
-
-  <p>
-    Total :
-    <strong id="cartTotal">0 FCFA</strong>
-  </p>
-
- <button type="button" id="checkoutButton" class="btn btn-blue">
-  Passer la commande
-</button>
-
-<button type="button" id="whatsappOrderButton" class="btn btn-green">
-  Commander sur WhatsApp
-</button>
-</section>
-
-      <div id="productGrid" class="product-grid" aria-live="polite">
-        <p class="loading-message">Chargement des produits...</p>
-      </div>
-    </section>
-
-    <section class="restaurant" id="delice">
-      <div class="restaurant-content">
-        <p class="eyebrow">LE PLAISIR DES SAVEURS</p>
-        <h2>AMSRON <span>DÉLICE</span></h2>
-        <p>
-          Envie d'un bon repas ? Contactez-nous pour découvrir
-          notre offre de restauration et passer votre commande.
+    <!-- À PROPOS -->
+    <section id="apropos" class="section">
+      <div class="container">
+        <h2>À propos de nous</h2>
+        <p class="section-description">
+          AMSRON HOUSE souhaite vous proposer une expérience simple,
+          accueillante et élégante, aussi bien pour vos achats que
+          pour vos demandes concernant le restaurant.
         </p>
-        <a class="btn btn-white"
-          href="https://wa.me/22892181666?text=Bonjour%20AMSRON%20HOUSE%2C%20je%20souhaite%20d%C3%A9couvrir%20votre%20menu."
-          target="_blank" rel="noopener noreferrer">
-          Commander un repas
-        </a>
       </div>
     </section>
 
-    <section class="section about" id="apropos">
-      <div class="section-heading">
-        <p class="eyebrow">QUI SOMMES-NOUS ?</p>
-        <h2>Une expérience <span>qui vous ressemble.</span></h2>
-      </div>
-      <p class="about-text">
-        AMSRON HOUSE réunit le commerce et la restauration dans un même
-        univers. Notre ambition est de vous proposer une expérience
-        simple, pratique et agréable.
-      </p>
-    </section>
+    <!-- CONTACT -->
+    <section id="contact" class="section section-light">
+      <div class="container">
+        <h2>Contactez-nous</h2>
+        <p class="section-description">
+          Notre équipe est disponible pour répondre à vos questions.
+        </p>
 
-    <section class="contact" id="contact">
-      <p class="eyebrow">BESOIN D'INFORMATIONS ?</p>
-      <h2>Nous sommes à <span>votre écoute.</span></h2>
-      <p>Contactez notre équipe pour vos commandes et renseignements.</p>
-      <a class="btn btn-blue"
-        href="https://wa.me/22892181666"
-        target="_blank" rel="noopener noreferrer">
-        Contacter AMSRON HOUSE
-      </a>
+        <div class="info-panel">
+          <h3>AMSRON HOUSE</h3>
+          <p>Pour toute information sur nos produits ou nos services, contactez-nous.</p>
+
+          <div class="contact-details">
+            <p>
+              WhatsApp :
+              <a
+                href="https://wa.me/22892181666"
+                target="_blank"
+                rel="noopener noreferrer"
+              >+228 92 18 16 66</a>
+            </p>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 
-  <footer class="footer">
-    <a class="logo" href="#accueil">AMSRON <span>HOUSE</span></a>
-    <p>Boutique en ligne & restauration.</p>
-    <p>© <span id="year"></span> AMSRON HOUSE. Tous droits réservés.</p>
+  <!-- PIED DE PAGE -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>© <span id="currentYear"></span> AMSRON HOUSE.</p>
+      <p>Tous droits réservés.</p>
+    </div>
   </footer>
 
-  <script type="module" src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
