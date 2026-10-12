@@ -8,10 +8,9 @@ const APPWRITE_PROJECT_ID = "6ac8d53b00374f7bdd20";
 const APPWRITE_DATABASE_ID = "amsron-database";
 const APPWRITE_PRODUCTS_TABLE_ID = "products";
 
-/* Numéro WhatsApp au format international, sans + ni espaces */
 const WHATSAPP_NUMBER = "22892181666";
 
-/* Sélecteurs HTML */
+/* Éléments HTML */
 const productGrid = document.getElementById("productGrid");
 const productMessage = document.getElementById("productMessage");
 
@@ -29,7 +28,6 @@ const deliveryMethod = document.getElementById("deliveryMethod");
 const addressGroup = document.getElementById("addressGroup");
 const deliveryAddress = document.getElementById("deliveryAddress");
 
-const submitOrderButton = document.getElementById("submitOrderButton");
 const whatsappOrderButton = document.getElementById("whatsappOrderButton");
 
 const menuToggle = document.getElementById("menuToggle");
@@ -105,7 +103,7 @@ function isProductAvailable(product) {
 }
 
 /* ==========================================
-   CHARGEMENT APPWRITE
+   CHARGEMENT DES PRODUITS APPWRITE
 ========================================== */
 
 async function loadProducts() {
@@ -114,12 +112,9 @@ async function loadProducts() {
   showMessage(productMessage, "Chargement des produits...");
 
   try {
-    /*
-      Requête REST Appwrite.
-      La table products est l'identifiant de table configuré.
-    */
+    /* Adresse TablesDB */
     const url =
-      `${APPWRITE_ENDPOINT}/databases/` +
+      `${APPWRITE_ENDPOINT}/tablesdb/` +
       `${encodeURIComponent(APPWRITE_DATABASE_ID)}/tables/` +
       `${encodeURIComponent(APPWRITE_PRODUCTS_TABLE_ID)}/rows`;
 
@@ -133,9 +128,7 @@ async function loadProducts() {
 
     if (!response.ok) {
       const details = await response.text();
-      throw new Error(
-        `Appwrite (${response.status}) : ${details}`
-      );
+      throw new Error(`Appwrite (${response.status}) : ${details}`);
     }
 
     const result = await response.json();
@@ -146,13 +139,16 @@ async function loadProducts() {
         ? result.documents
         : [];
 
+    console.log("Produits récupérés :", products.length);
+
     renderProducts();
+
   } catch (error) {
     console.error("Erreur de chargement des produits :", error);
 
     showMessage(
       productMessage,
-      "Impossible de charger les produits. Vérifiez la configuration Appwrite, les permissions de lecture et la connexion.",
+      "Impossible de charger les produits. Vérifiez la configuration Appwrite et les permissions de lecture.",
       "error"
     );
   }
@@ -193,8 +189,11 @@ function renderProducts() {
            loading="lazy"
            onerror="this.style.display='none'"
          >`
-      : `<div class="product-image" role="img"
-           aria-label="Image non disponible"></div>`;
+      : `<div
+           class="product-image"
+           role="img"
+           aria-label="Image non disponible"
+         ></div>`;
 
     return `
       <article class="product-card">
@@ -371,7 +370,7 @@ function renderCart() {
 }
 
 /* ==========================================
-   FORMULAIRE DE COMMANDE
+   LIVRAISON
 ========================================== */
 
 function updateDeliveryFields() {
@@ -382,6 +381,10 @@ function updateDeliveryFields() {
   addressGroup.hidden = !needsAddress;
   deliveryAddress.required = needsAddress;
 }
+
+/* ==========================================
+   COMMANDE WHATSAPP
+========================================== */
 
 function buildOrderMessage() {
   const formData = new FormData(checkoutForm);
@@ -426,7 +429,11 @@ function buildOrderMessage() {
 
 function sendOrderToWhatsApp() {
   if (cart.length === 0) {
-    showMessage(checkoutMessage, "Ajoutez d'abord un produit au panier.", "error");
+    showMessage(
+      checkoutMessage,
+      "Ajoutez d'abord un produit au panier.",
+      "error"
+    );
     return;
   }
 
@@ -435,7 +442,8 @@ function sendOrderToWhatsApp() {
   }
 
   const message = buildOrderMessage();
-  const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  const url =
+    `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 
   window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -508,6 +516,7 @@ if (checkoutForm) {
 if (menuToggle && navMenu) {
   menuToggle.addEventListener("click", () => {
     const isOpen = navMenu.classList.toggle("open");
+
     menuToggle.setAttribute("aria-expanded", String(isOpen));
     menuToggle.setAttribute(
       "aria-label",
